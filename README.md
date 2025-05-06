@@ -23,6 +23,7 @@ Contains code for processing the RNA-seq dataset, performing differential expres
 Plots used in the thesis.
 
 References
+
 Bloom, J. S. et al. Rare variants contribute disproportionately to quantitative trait variation in yeast. Elife 8, (2019).
 Caudal, E. et al. Pan-transcriptome reveals a large accessory genome contribution to gene expression variation in yeast. Preprint at https://doi.org/10.1101/2023.05.17.541122 (2023).
 
