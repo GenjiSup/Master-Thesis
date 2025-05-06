@@ -1,6 +1,6 @@
 ---
-title: "Variant comparison"
-author: "Carlo Alberto Zani"
+title: "VariantStrainSelection"
+author: "bwa Alberto Zani"
 date: "2024-11-14"
 output: html_document
 ---
@@ -9,7 +9,7 @@ output: html_document
 ```{r setup, include=FALSE}
 
 # Set working directory
-knitr::opts_knit$set(root.dir = "/Users/carloalbertozani/Documents/SIFT")
+knitr::opts_knit$set(root.dir = "/path-to-SIFT-folder/SIFT")
 
 # Load libraries
 library(tidyverse)
@@ -28,9 +28,9 @@ library(ComplexUpset)
 
 
 # 1. Loading SIFT files
-```{r Carlo SIFT, include=FALSE}
+```{r bwa SIFT, include=FALSE}
 # Set working directory
-setwd("/Users/carloalbertozani/Documents/CarloSIFT")
+setwd("/path-to-SIFT-folder/bwaSIFT")
 getwd()
 data_dir <- getwd() 
 
@@ -38,7 +38,7 @@ data_dir <- getwd()
 folders <- list.dirs(data_dir, recursive = FALSE)
 
 # Create an empty list to store the data frames
-CarloSIFT <- list()
+bwaSIFT <- list()
 
 # Create a vector to store sample names and track which ones have already been seen
 seen_samples <- c()
@@ -81,7 +81,7 @@ for (i in seq_along(folders)) {
     data$sample <- sample_name
     
     # Store the data in the list
-    CarloSIFT[[paste0(sample_name)]] <- data
+    bwaSIFT[[paste0(sample_name)]] <- data
   } else {
     # Print a message if no XLS file is found in the current folder
     message("No XLS file found in folder: ", folders[i])
@@ -93,9 +93,9 @@ rm(data)
 
 
 
-```{r Emeline SIFT, include=FALSE}
+```{r bowtie SIFT, include=FALSE}
 # Set working directory
-setwd("/Users/carloalbertozani/Documents/EmelineSIFT")
+setwd("/path-to-SIFT-folder/bowtieSIFT")
 getwd()
 data_dir <- getwd() 
 
@@ -103,7 +103,7 @@ data_dir <- getwd()
 folders <- list.dirs(data_dir, recursive = FALSE)
 
 # Create an empty list to store the data frames
-EmelineSIFT <- list()
+bowtieSIFT <- list()
 
 # Create a vector to store sample names and track which ones have already been seen
 seen_samples <- c()
@@ -143,7 +143,7 @@ for (i in seq_along(folders)) {
     data$sample <- sample_name
     
     # Store the data in the list
-    EmelineSIFT[[paste0(sample_name)]] <- data
+    bowtieSIFT[[paste0(sample_name)]] <- data
   } else {
     # Print a message if no XLS file is found in the current folder
     message("No XLS file found in folder: ", folders[i])
@@ -155,16 +155,16 @@ rm(data)
 
 
 
-```{r Parent SIFT, include=FALSE}
+```{r crg SIFT, include=FALSE}
 # Set working directory
-setwd("/Users/carloalbertozani/Documents/ParentSIFT")
+setwd("/path-to-SIFT-folder/crgSIFT")
 getwd()
 data_dir <- getwd() 
 
 # Get a list of all folders within the main directory
 folders <- list.dirs(data_dir, recursive = FALSE)
 
-ParentSIFT <- list()
+crgSIFT <- list()
 
 # Loop through each folder and load the XLS file inside
 for (i in seq_along(folders)) {
@@ -185,7 +185,7 @@ for (i in seq_along(folders)) {
     data <- read_tsv(file_path)
     
     # Dynamically assign each dataset to a new variable with sequential names
-    ParentSIFT[[(paste0(cleaned_basename))]] <- data
+    crgSIFT[[(paste0(cleaned_basename))]] <- data
   } else {
     # Print a message if no XLS file is found in the current folder
     message("No XLS file found in folder: ", folders[i])
@@ -199,8 +199,8 @@ rm(data)
 # 2. Strain aggregation
 ```{r}
 # Load and merge the keys
-strain_key <- read_tsv("/Users/carloalbertozani/Documents/Keyfiles/strain_key.tsv")
-sample_key <- read_tsv("/Users/carloalbertozani/Documents/Keyfiles/sample_key.tsv")
+strain_key <- read_tsv("/path-to-keyfiles/strain_key.tsv")
+sample_key <- read_tsv("/path-to-keyfiles/sample_key.tsv")
 data_key <- inner_join(strain_key, sample_key, by = "strain_ID")
 
 # Remove the "_" from the "sample_number" column so that it matched the data names from the list
@@ -208,61 +208,61 @@ data_key <- data_key %>%
   mutate(sample_number = gsub("_", "", sample_number))
 
 #################
-##### Carlo #####
+##### bwa #####
 #################
-for (i in seq_along(CarloSIFT)) {
+for (i in seq_along(bwaSIFT)) {
   # Extract the current sample name without the "_1" and "_2" suffixes
-  sample_name_list <- str_remove(names(CarloSIFT)[i], "_[12]$")
+  sample_name_list <- str_remove(names(bwaSIFT)[i], "_[12]$")
   
-  # Find the matching haploid_parent info from data_key
-  haploid_parent_info <- data_key %>%
+  # Find the matching haploid_crg info from data_key
+  haploid_crg_info <- data_key %>%
     filter(sample_number == sample_name_list) %>%
-    pull(haploid_parent)
+    pull(haploid_crg)
   
-  # Check if haploid_parent_info is found
-  if (length(haploid_parent_info) == 1) {
-    # Add haploid_parent info as a new column to the dataframe
-    CarloSIFT[[i]] <- CarloSIFT[[i]] %>%
-      mutate(strain = word(haploid_parent_info, 1, 2)) %>%
+  # Check if haploid_crg_info is found
+  if (length(haploid_crg_info) == 1) {
+    # Add haploid_crg info as a new column to the dataframe
+    bwaSIFT[[i]] <- bwaSIFT[[i]] %>%
+      mutate(strain = word(haploid_crg_info, 1, 2)) %>%
       dplyr::select(-sample)
   } else {
-    warning(paste("No matching haploid_parent info found for sample:", sample_name_list))
+    warning(paste("No matching haploid_crg info found for sample:", sample_name_list))
   }
 }
 
 ###################
-##### Emeline #####
+##### bowtie #####
 ###################
-for (i in seq_along(EmelineSIFT)) {
+for (i in seq_along(bowtieSIFT)) {
   # Extract the current sample name without the "_1" and "_2" suffixes
-  sample_name_list <- str_remove(names(EmelineSIFT)[i], "_[12]$")
+  sample_name_list <- str_remove(names(bowtieSIFT)[i], "_[12]$")
   
-  # Find the matching haploid_parent info from data_key
-  haploid_parent_info <- data_key %>%
+  # Find the matching haploid_crg info from data_key
+  haploid_crg_info <- data_key %>%
     filter(sample_number == sample_name_list) %>%
-    pull(haploid_parent)
+    pull(haploid_crg)
   
-  # Check if haploid_parent_info is found
-  if (length(haploid_parent_info) == 1) {
-    # Add haploid_parent info as a new column to the dataframe
-    EmelineSIFT[[i]] <- EmelineSIFT[[i]] %>%
-      mutate(strain = word(haploid_parent_info, 1, 2)) %>%
+  # Check if haploid_crg_info is found
+  if (length(haploid_crg_info) == 1) {
+    # Add haploid_crg info as a new column to the dataframe
+    bowtieSIFT[[i]] <- bowtieSIFT[[i]] %>%
+      mutate(strain = word(haploid_crg_info, 1, 2)) %>%
       dplyr::select(-sample)
   } else {
-    warning(paste("No matching haploid_parent info found for sample:", sample_name_list))
+    warning(paste("No matching haploid_crg info found for sample:", sample_name_list))
   }
 }
 
 ##################
-##### Parent #####
+##### crg #####
 ##################
-for (i in seq_along(ParentSIFT)) {
+for (i in seq_along(crgSIFT)) {
   # Get the current sample name
-  sample_name_list <- names(ParentSIFT)[i]
+  sample_name_list <- names(crgSIFT)[i]
   
-  # Extract the first two words of 'haploid_parent' as 'strain' in data_key_variant
+  # Extract the first two words of 'haploid_crg' as 'strain' in data_key_variant
   data_key_variant <- data_key %>%
-    mutate(strain = word(haploid_parent, 1, 2))
+    mutate(strain = word(haploid_crg, 1, 2))
   
   # Compute similarity scores between the sample name and all strains
   similarity_scores <- stringsim(sample_name_list, data_key_variant$strain)
@@ -275,8 +275,8 @@ for (i in seq_along(ParentSIFT)) {
   if (best_similarity >= 0.1) {
     best_match_strain <- data_key_variant$strain[best_match_index]
     
-    # Add the matched strain to the ParentSIFT dataframe
-    ParentSIFT[[i]] <- ParentSIFT[[i]] %>%
+    # Add the matched strain to the crgSIFT dataframe
+    crgSIFT[[i]] <- crgSIFT[[i]] %>%
       mutate(strain = best_match_strain)
   } else {
     warning(paste("No suitable match found for sample:", sample_name_list))
@@ -290,44 +290,44 @@ rm(data_key_variant, sample_key, strain_key)
 # 3. Merge based on the different strains
 ```{r}
 #################
-##### Carlo #####
+##### bwa #####
 #################
 # Create the list to store the variants
-CarloSIFTVariant <- list()
+bwaSIFTVariant <- list()
 
-# Loop over the "CarloSIFT" list
-for (i in seq_along(CarloSIFT)) {
-  sample <- CarloSIFT[[i]]  # Extract the current sample
+# Loop over the "bwaSIFT" list
+for (i in seq_along(bwaSIFT)) {
+  sample <- bwaSIFT[[i]]  # Extract the current sample
   
   strain <- sample$strain[1]  # Get the strain name
   
-  if (strain %in% names(CarloSIFTVariant)) {
+  if (strain %in% names(bwaSIFTVariant)) {
     # If the strain already exists in the list, append the sample using rbind
-    CarloSIFTVariant[[strain]] <- rbind(CarloSIFTVariant[[strain]], sample)
+    bwaSIFTVariant[[strain]] <- rbind(bwaSIFTVariant[[strain]], sample)
   } else {
     # Otherwise, create a new entry in the list for this strain
-    CarloSIFTVariant[[strain]] <- sample
+    bwaSIFTVariant[[strain]] <- sample
   }
 }
   
 ###################
-##### Emeline #####
+##### bowtie #####
 ###################
 # Create the list to store the variants
-EmelineSIFTVariant <- list()
+bowtieSIFTVariant <- list()
 
-# Loop over the "EmelineSIFT" list
-for (i in seq_along(EmelineSIFT)) {
-  sample <- EmelineSIFT[[i]]  # Extract the current sample
+# Loop over the "bowtieSIFT" list
+for (i in seq_along(bowtieSIFT)) {
+  sample <- bowtieSIFT[[i]]  # Extract the current sample
   
   strain <- sample$strain[1]  # Get the strain name
   
-  if (strain %in% names(EmelineSIFTVariant)) {
+  if (strain %in% names(bowtieSIFTVariant)) {
     # If the strain already exists in the list, append the sample using rbind
-    EmelineSIFTVariant[[strain]] <- rbind(EmelineSIFTVariant[[strain]], sample)
+    bowtieSIFTVariant[[strain]] <- rbind(bowtieSIFTVariant[[strain]], sample)
   } else {
     # Otherwise, create a new entry in the list for this strain
-    EmelineSIFTVariant[[strain]] <- sample
+    bowtieSIFTVariant[[strain]] <- sample
   }
 }
 
@@ -335,69 +335,7 @@ rm(sample)
 ```
 
 
-# 6. Add the sequences around the SNPs (probably not needed)
-```{r}
- library(seqinr)
-# reference <- read.fasta("/Users/carloalbertozani/Documents/Keyfiles/GCF_000146045.2_R64_genomic.fna")
-reference2 <- read.fasta("/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Keyfiles/genome.fa")
-# 
-# # Rename the elements in the list with Roman numerals and remove the 17th chromosome
-# for (i in seq_along(reference)) {
-#   if (i == 17) {
-#     # Rename the 17th element to "Mito" (no Roman numeral for Mito)
-#     names(reference)[i] <- "Mito"
-#   } else {
-#     # Rename other elements with "chr" and their Roman numeral position
-#     names(reference)[i] <- paste0("chr", as.roman(i)[1])
-#   }
-# }
-# 
-# # Now remove the 17th element after renaming
-# reference <- reference[-17]
-# 
-# # Loop through each row in the merged_Carlo_Emeline_Parent dataframe to extract flanking sequences
-# for (i in 1:nrow(merged_Carlo_Emeline_Parent)) {
-#   chrom <- merged_Carlo_Emeline_Parent$CHROM[i]  # Get the chromosome
-#   pos <- merged_Carlo_Emeline_Parent$POS[i]     # Get the position
-# 
-#   # Check if chromosome exists in the reference genome
-#   if (chrom %in% names(reference)) {
-# 
-#     # Convert the SeqFastadna object to a string (DNA sequence)
-#     chrom_seq <- as.character(reference[[chrom]])
-# 
-#     if (toupper(chrom_seq[pos]) == merged_Carlo_Emeline_Parent$REF_ALLELE[i]) {
-#     # Define the start and end positions for 15bp before and after
-#     start_pos <- max(1, pos - 15)  # Ensure we don't go below position 1
-#     end_pos <- min(pos + 15, length(chrom_seq))  # Ensure we don't go beyond sequence length
-# 
-#     # Extract the flanking sequences (before and after the SNP)
-#     # The 'less' region is from start_pos to pos - 1
-#     less <- chrom_seq[start_pos:(pos - 1)]
-# 
-#     # The 'more' region is from pos + 1 to end_pos
-#     more <- chrom_seq[(pos + 1):end_pos]
-# 
-#     # Concatenate the vectors into strings
-#     less_str <- paste(less, collapse = "")
-#     more_str <- paste(more, collapse = "")
-# 
-#     # Add the concatenated results to the dataframe
-#     merged_Carlo_Emeline_Parent$down[i] <- less_str  # Store the concatenated 'less' sequence
-#     merged_Carlo_Emeline_Parent$up[i] <- more_str    # Store the concatenated 'more' sequence
-#   }
-#     } else {
-#     # If chromosome is not found, set NA for both flanks
-#     merged_Carlo_Emeline_Parent$down[i] <- NA
-#     merged_Carlo_Emeline_Parent$up[i] <- NA
-#   }
-# }
-
-```
-
-
-
-# 7. Venn Plots
+# 4. Venn Plots
 ```{r venn function for 3 groups, echo=FALSE}
 # Corresponding names for each dataset to use in filenames
 dataset_names <- c(
@@ -440,24 +378,24 @@ fun_venn_diagram <- function(dataset1, dataset2, dataset3, label1 = "Dataset 1",
 
 # Generate individual plots
 venn_plots <- list(
-  fun_venn_diagram(CarloSIFTVariant[["M22 MatA"]], EmelineSIFTVariant[["M22 MatA"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22"),
-  fun_venn_diagram(CarloSIFTVariant[["M22 MatAlpha"]], EmelineSIFTVariant[["M22 MatAlpha"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22 Alpha"),
-  fun_venn_diagram(CarloSIFTVariant[["BY MatA"]], EmelineSIFTVariant[["BY MatA"]], ParentSIFT[["BYa"]], "Carlo", "Emeline", "Parent", "Venn BY"),
-  fun_venn_diagram(CarloSIFTVariant[["RM MatAlpha"]], EmelineSIFTVariant[["RM MatAlpha"]], ParentSIFT[["RMx"]], "Carlo", "Emeline", "Parent", "Venn RM"),
-  fun_venn_diagram(CarloSIFTVariant[["YPS163 MatA"]], EmelineSIFTVariant[["YPS163 MatA"]], ParentSIFT[["YPS163a"]], "Carlo", "Emeline", "Parent", "Venn YPS163"),
-  fun_venn_diagram(CarloSIFTVariant[["YJM145 MatAlpha"]], EmelineSIFTVariant[["YJM145 MatAlpha"]], ParentSIFT[["YJM145x"]], "Carlo", "Emeline", "Parent", "Venn YJM145"),
-  fun_venn_diagram(CarloSIFTVariant[["Clib413 MatA"]], EmelineSIFTVariant[["Clib413 MatA"]], ParentSIFT[["CLIB413a"]], "Carlo", "Emeline", "Parent", "Venn Clib413"),
-  fun_venn_diagram(CarloSIFTVariant[["YJM978 MatAlpha"]], EmelineSIFTVariant[["YJM978 MatAlpha"]], ParentSIFT[["YJM978x"]], "Carlo", "Emeline", "Parent", "Venn YJM978"),
-  fun_venn_diagram(CarloSIFTVariant[["YJM454 MatA"]], EmelineSIFTVariant[["YJM454 MatA"]], ParentSIFT[["YJM454a"]], "Carlo", "Emeline", "Parent", "Venn YJM454"),
-  fun_venn_diagram(CarloSIFTVariant[["YPS1009 MatAlpha"]], EmelineSIFTVariant[["YPS1009 MatAlpha"]], ParentSIFT[["YPS1009x"]], "Carlo", "Emeline", "Parent", "Venn YPS1009"),
-  fun_venn_diagram(CarloSIFTVariant[["I14 MatA"]], EmelineSIFTVariant[["I14 MatA"]], ParentSIFT[["I14a"]], "Carlo", "Emeline", "Parent", "Venn I14"),
-  fun_venn_diagram(CarloSIFTVariant[["Y10 MatAlpha"]], EmelineSIFTVariant[["Y10 MatAlpha"]], ParentSIFT[["Y10x"]], "Carlo", "Emeline", "Parent", "Venn Y10"),
-  fun_venn_diagram(CarloSIFTVariant[["PW5 MatA"]], EmelineSIFTVariant[["PW5 MatA"]], ParentSIFT[["PW5a"]], "Carlo", "Emeline", "Parent", "Venn PW5"),
-  fun_venn_diagram(CarloSIFTVariant[["PW5 MatAlpha"]], EmelineSIFTVariant[["PW5 MatAlpha"]], ParentSIFT[["PW5a"]], "Carlo", "Emeline", "Parent", "Venn PW5 Alpha"),
-  fun_venn_diagram(CarloSIFTVariant[["273614 MatA"]], EmelineSIFTVariant[["273614 MatA"]], ParentSIFT[["273614xa"]], "Carlo", "Emeline", "Parent", "Venn 273614"),
-  fun_venn_diagram(CarloSIFTVariant[["YJM981 MatAlpha"]], EmelineSIFTVariant[["YJM981 MatAlpha"]], ParentSIFT[["YJM981x"]], "Carlo", "Emeline", "Parent", "Venn YJM981"),
-  fun_venn_diagram(CarloSIFTVariant[["CBS2888 MatA"]], EmelineSIFTVariant[["CBS2888 MatA"]], ParentSIFT[["CBS2888a"]], "Carlo", "Emeline", "Parent", "Venn CBS2888"),
-  fun_venn_diagram(CarloSIFTVariant[["Clib219 MatAlpha"]], EmelineSIFTVariant[["Clib219 MatAlpha"]], ParentSIFT[["CLIB219x"]], "Carlo", "Emeline", "Parent", "Venn Clib219")
+  fun_venn_diagram(bwaSIFTVariant[["M22 MatA"]], bowtieSIFTVariant[["M22 MatA"]], crgSIFT[["M22"]], "bwa", "bowtie", "crg", "Venn M22"),
+  fun_venn_diagram(bwaSIFTVariant[["M22 MatAlpha"]], bowtieSIFTVariant[["M22 MatAlpha"]], crgSIFT[["M22"]], "bwa", "bowtie", "crg", "Venn M22 Alpha"),
+  fun_venn_diagram(bwaSIFTVariant[["BY MatA"]], bowtieSIFTVariant[["BY MatA"]], crgSIFT[["BYa"]], "bwa", "bowtie", "crg", "Venn BY"),
+  fun_venn_diagram(bwaSIFTVariant[["RM MatAlpha"]], bowtieSIFTVariant[["RM MatAlpha"]], crgSIFT[["RMx"]], "bwa", "bowtie", "crg", "Venn RM"),
+  fun_venn_diagram(bwaSIFTVariant[["YPS163 MatA"]], bowtieSIFTVariant[["YPS163 MatA"]], crgSIFT[["YPS163a"]], "bwa", "bowtie", "crg", "Venn YPS163"),
+  fun_venn_diagram(bwaSIFTVariant[["YJM145 MatAlpha"]], bowtieSIFTVariant[["YJM145 MatAlpha"]], crgSIFT[["YJM145x"]], "bwa", "bowtie", "crg", "Venn YJM145"),
+  fun_venn_diagram(bwaSIFTVariant[["Clib413 MatA"]], bowtieSIFTVariant[["Clib413 MatA"]], crgSIFT[["CLIB413a"]], "bwa", "bowtie", "crg", "Venn Clib413"),
+  fun_venn_diagram(bwaSIFTVariant[["YJM978 MatAlpha"]], bowtieSIFTVariant[["YJM978 MatAlpha"]], crgSIFT[["YJM978x"]], "bwa", "bowtie", "crg", "Venn YJM978"),
+  fun_venn_diagram(bwaSIFTVariant[["YJM454 MatA"]], bowtieSIFTVariant[["YJM454 MatA"]], crgSIFT[["YJM454a"]], "bwa", "bowtie", "crg", "Venn YJM454"),
+  fun_venn_diagram(bwaSIFTVariant[["YPS1009 MatAlpha"]], bowtieSIFTVariant[["YPS1009 MatAlpha"]], crgSIFT[["YPS1009x"]], "bwa", "bowtie", "crg", "Venn YPS1009"),
+  fun_venn_diagram(bwaSIFTVariant[["I14 MatA"]], bowtieSIFTVariant[["I14 MatA"]], crgSIFT[["I14a"]], "bwa", "bowtie", "crg", "Venn I14"),
+  fun_venn_diagram(bwaSIFTVariant[["Y10 MatAlpha"]], bowtieSIFTVariant[["Y10 MatAlpha"]], crgSIFT[["Y10x"]], "bwa", "bowtie", "crg", "Venn Y10"),
+  fun_venn_diagram(bwaSIFTVariant[["PW5 MatA"]], bowtieSIFTVariant[["PW5 MatA"]], crgSIFT[["PW5a"]], "bwa", "bowtie", "crg", "Venn PW5"),
+  fun_venn_diagram(bwaSIFTVariant[["PW5 MatAlpha"]], bowtieSIFTVariant[["PW5 MatAlpha"]], crgSIFT[["PW5a"]], "bwa", "bowtie", "crg", "Venn PW5 Alpha"),
+  fun_venn_diagram(bwaSIFTVariant[["273614 MatA"]], bowtieSIFTVariant[["273614 MatA"]], crgSIFT[["273614xa"]], "bwa", "bowtie", "crg", "Venn 273614"),
+  fun_venn_diagram(bwaSIFTVariant[["YJM981 MatAlpha"]], bowtieSIFTVariant[["YJM981 MatAlpha"]], crgSIFT[["YJM981x"]], "bwa", "bowtie", "crg", "Venn YJM981"),
+  fun_venn_diagram(bwaSIFTVariant[["CBS2888 MatA"]], bowtieSIFTVariant[["CBS2888 MatA"]], crgSIFT[["CBS2888a"]], "bwa", "bowtie", "crg", "Venn CBS2888"),
+  fun_venn_diagram(bwaSIFTVariant[["Clib219 MatAlpha"]], bowtieSIFTVariant[["Clib219 MatAlpha"]], crgSIFT[["CLIB219x"]], "bwa", "bowtie", "crg", "Venn Clib219")
 
 )
 
@@ -467,19 +405,12 @@ final_grid <- wrap_plots(venn_plots, ncol = 6)  # Adjust `ncol` for desired colu
 # Display the grid
 print(final_grid)
 
-# ggsave(
-#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/venn_grid_25112023.pdf", 
-#   plot = final_grid, 
-#   width = 40, 
-#   height = 25
-# )
-
 # Plot for thesis
 venn_thesis <- list(
-  fun_venn_diagram(CarloSIFTVariant[["BY MatA"]], EmelineSIFTVariant[["BY MatA"]], ParentSIFT[["BYa"]], "Carlo", "Emeline", "Parent", "Venn BY"),
-  fun_venn_diagram(CarloSIFTVariant[["Y10 MatAlpha"]], EmelineSIFTVariant[["Y10 MatAlpha"]], ParentSIFT[["Y10x"]], "Carlo", "Emeline", "Parent", "Venn Y10"),
-  fun_venn_diagram(CarloSIFTVariant[["M22 MatAlpha"]], EmelineSIFTVariant[["M22 MatAlpha"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22 Alpha"),
-  fun_venn_diagram(CarloSIFTVariant[["RM MatAlpha"]], EmelineSIFTVariant[["RM MatAlpha"]], ParentSIFT[["RMx"]], "Carlo", "Emeline", "Parent", "Venn RM")
+  fun_venn_diagram(bwaSIFTVariant[["BY MatA"]], bowtieSIFTVariant[["BY MatA"]], crgSIFT[["BYa"]], "bwa", "bowtie", "crg", "Venn BY"),
+  fun_venn_diagram(bwaSIFTVariant[["Y10 MatAlpha"]], bowtieSIFTVariant[["Y10 MatAlpha"]], crgSIFT[["Y10x"]], "bwa", "bowtie", "crg", "Venn Y10"),
+  fun_venn_diagram(bwaSIFTVariant[["M22 MatAlpha"]], bowtieSIFTVariant[["M22 MatAlpha"]], crgSIFT[["M22"]], "bwa", "bowtie", "crg", "Venn M22 Alpha"),
+  fun_venn_diagram(bwaSIFTVariant[["RM MatAlpha"]], bowtieSIFTVariant[["RM MatAlpha"]], crgSIFT[["RMx"]], "bwa", "bowtie", "crg", "Venn RM")
   )
 
 # Combine plots into a grid using patchwork
@@ -488,18 +419,10 @@ grid_thesis <- wrap_plots(venn_thesis, ncol = 2)
 # Display the grid
 print(grid_thesis)
 
-# ggsave(
-#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Plots/Venn.pdf", 
-#   plot = grid_thesis, 
-#   width = 40, 
-#   height = 25
-# )
-  
-
 ```
 
 
-# 7.1 Stats for the Venn
+# 4.1 Stats for the Venn
 ```{r}
 # Define strain mapping
 strain_info <- list(
@@ -524,124 +447,118 @@ strain_info <- list(
 )
 
 # Initialize containers
-overlap_Carlo_Parent <- numeric()
-overlap_Emeline_Parent <- numeric()
+overlap_bwa_crg <- numeric()
+overlap_bowtie_crg <- numeric()
 overlap_AllThree <- numeric()
 
 for (strain_key in names(strain_info)) {
-  parent_key <- strain_info[[strain_key]]
+  crg_key <- strain_info[[strain_key]]
   
-  carlo_df <- CarloSIFTVariant[[strain_key]]
-  emeline_df <- EmelineSIFTVariant[[strain_key]]
-  parent_df <- ParentSIFT[[parent_key]]
+  bwa_df <- bwaSIFTVariant[[strain_key]]
+  bowtie_df <- bowtieSIFTVariant[[strain_key]]
+  crg_df <- crgSIFT[[crg_key]]
   
-  if (is.null(carlo_df) || is.null(emeline_df) || is.null(parent_df)) next
+  if (is.null(bwa_df) || is.null(bowtie_df) || is.null(crg_df)) next
   
   # Create CHROM_POS identifiers
-  carlo_pos <- unique(paste(carlo_df$CHROM, carlo_df$POS))
-  emeline_pos <- unique(paste(emeline_df$CHROM, emeline_df$POS))
-  parent_pos <- unique(paste(parent_df$CHROM, parent_df$POS))
+  bwa_pos <- unique(paste(bwa_df$CHROM, bwa_df$POS))
+  bowtie_pos <- unique(paste(bowtie_df$CHROM, bowtie_df$POS))
+  crg_pos <- unique(paste(crg_df$CHROM, crg_df$POS))
   
   # Compute overlaps using CHROM_POS
-  carlo_parent <- length(intersect(carlo_pos, parent_pos)) / length(union(carlo_pos, parent_pos))
-  emeline_parent <- length(intersect(emeline_pos, parent_pos)) / length(union(emeline_pos, parent_pos))
-  all_three <- length(Reduce(intersect, list(carlo_pos, emeline_pos, parent_pos))) /
-               length(Reduce(union, list(carlo_pos, emeline_pos, parent_pos)))
+  bwa_crg <- length(intersect(bwa_pos, crg_pos)) / length(union(bwa_pos, crg_pos))
+  bowtie_crg <- length(intersect(bowtie_pos, crg_pos)) / length(union(bowtie_pos, crg_pos))
+  all_three <- length(Reduce(intersect, list(bwa_pos, bowtie_pos, crg_pos))) /
+               length(Reduce(union, list(bwa_pos, bowtie_pos, crg_pos)))
   
   # Store results
-  overlap_Carlo_Parent <- c(overlap_Carlo_Parent, carlo_parent)
-  overlap_Emeline_Parent <- c(overlap_Emeline_Parent, emeline_parent)
+  overlap_bwa_crg <- c(overlap_bwa_crg, bwa_crg)
+  overlap_bowtie_crg <- c(overlap_bowtie_crg, bowtie_crg)
   overlap_AllThree <- c(overlap_AllThree, all_three)
 }
 
 # Averages
-avg_carlo_parent <- median(overlap_Carlo_Parent)
-avg_emeline_parent <- median(overlap_Emeline_Parent)
+avg_bwa_crg <- median(overlap_bwa_crg)
+avg_bowtie_crg <- median(overlap_bowtie_crg)
 avg_all_three <- median(overlap_AllThree)
 
 # Output
-cat("Median overlap (Replicate 1 vs Parent):", round(avg_carlo_parent, 3), "\n")
-cat("Median overlap (Replicate 2 vs Parent):", round(avg_emeline_parent, 3), "\n")
+cat("Median overlap (Replicate 1 vs crg):", round(avg_bwa_crg, 3), "\n")
+cat("Median overlap (Replicate 2 vs crg):", round(avg_bowtie_crg, 3), "\n")
 cat("Median overlap (All three):", round(avg_all_three, 3), "\n")
 
 ```
 
 
 
-# 8. Find the number of deleterious mutations
+# 5. Find the number of deleterious mutations
 ```{r synonymous and deleterious, echo=FALSE}
 #################
-##### Carlo #####
+##### bwa #####
 #################
 # Create an empty list to store the filtered samples
-CarloSIFTDeleteriousAll <- list()
+bwaSIFTDeleteriousAll <- list()
 
-# Loop through each sample in CarloSIFT
-for (sample_name in names(CarloSIFTVariant)) {
+# Loop through each sample in bwaSIFT
+for (sample_name in names(bwaSIFTVariant)) {
   # Access each sample
-  sample <- CarloSIFTVariant[[sample_name]]
+  sample <- bwaSIFTVariant[[sample_name]]
   
-  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  # Filter the sample
   filtered_sample <- sample %>%
-#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
-#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
-    mutate(DATA = "CarloSIFT")
+    mutate(DATA = "bwaSIFT")
   
   # Add the filtered sample to the list
-  CarloSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+  bwaSIFTDeleteriousAll[[sample_name]] <- filtered_sample
 }
 
 # Merge all the filtered samples into one dataframe and ensure uniqueness
-merged_deleterious_carlo_all <- bind_rows(CarloSIFTDeleteriousAll) %>%
+merged_deleterious_bwa_all <- bind_rows(bwaSIFTDeleteriousAll) %>%
   distinct()  # Remove duplicate rows if there are any
 
 ###################
-##### Emeline #####
+##### bowtie #####
 ################### 
 # Create an empty list to store the filtered samples
-EmelineSIFTDeleteriousAll <- list()
+bowtieSIFTDeleteriousAll <- list()
 
-# Loop through each sample in "EmelineSIFTVariant"
-for (sample_name in names(EmelineSIFTVariant)) {
+# Loop through each sample in "bowtieSIFTVariant"
+for (sample_name in names(bowtieSIFTVariant)) {
   # Access each sample
-  sample <- EmelineSIFTVariant[[sample_name]]
+  sample <- bowtieSIFTVariant[[sample_name]]
   
-  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  # Filter the sample 
   filtered_sample <- sample %>%
-#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
-#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
-    mutate(DATA = "EmelineSIFT")
+    mutate(DATA = "bowtieSIFT")
   
   # Add the filtered sample to the list
-  EmelineSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+  bowtieSIFTDeleteriousAll[[sample_name]] <- filtered_sample
 }
 
 # Merge all the filtered samples into one dataframe and ensure uniqueness
-merged_deleterious_emeline_all <- bind_rows(EmelineSIFTDeleteriousAll) %>%
+merged_deleterious_bowtie_all <- bind_rows(bowtieSIFTDeleteriousAll) %>%
   distinct()  # Remove duplicate rows if there are any
 
 ##################
-##### Parent #####
+##### crg #####
 ##################
 # Create an empty list to store the filtered samples
-ParentSIFTDeleteriousAll <- list()
+crgSIFTDeleteriousAll <- list()
 
-# Loop through each sample in CarloSIFT
-for (sample_name in names(ParentSIFT)) {
+# Loop through each sample in bwaSIFT
+for (sample_name in names(crgSIFT)) {
   # Access each sample
-  sample <- ParentSIFT[[sample_name]]
+  sample <- crgSIFT[[sample_name]]
   
-  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  # Filter the sample 
   filtered_sample <- sample %>%
-#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
-#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
-    mutate(DATA = "ParentSIFT")
+    mutate(DATA = "crgSIFT")
   
   # Add the filtered sample to the list
-  ParentSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+  crgSIFTDeleteriousAll[[sample_name]] <- filtered_sample
 }
 
-merged_deleterious_parent_all <- bind_rows(ParentSIFTDeleteriousAll) %>%
+merged_deleterious_crg_all <- bind_rows(crgSIFTDeleteriousAll) %>%
     # Remove duplicate rows
   distinct() 
 
@@ -649,9 +566,9 @@ rm(filtered_sample, sample)
 ```
 
 
-# 9.Merge the different datasets
+# 6.Merge the different datasets
 ```{r}
-merged_Carlo_Emeline_All <- rbind(merged_deleterious_carlo_all, merged_deleterious_emeline_all) %>%
+merged_bwa_bowtie_All <- rbind(merged_deleterious_bwa_all, merged_deleterious_bowtie_all) %>%
   # Filter out unwanted strains
   filter(!strain %in% c("PW5 MatAlpha", "M22 MatAlpha")) %>%
   # Create a unique identifier
@@ -671,19 +588,19 @@ merged_Carlo_Emeline_All <- rbind(merged_deleterious_carlo_all, merged_deleterio
   dplyr::select(-CHROM_POS)
 
 # Filter to only include variants found in both datasets
-merged_Carlo_Emeline_Both_All <- merged_Carlo_Emeline_All %>%
+merged_bwa_bowtie_Both_All <- merged_bwa_bowtie_All %>%
   filter(DATA == "Both")
 
-# MERGE CARLO, EMELINE and PARENT
-merged_Carlo_Emeline_Parent_All <- rbind(merged_Carlo_Emeline_All, merged_deleterious_parent_all) %>%
+# MERGE bwa, bowtie and crg
+merged_bwa_bowtie_crg_All <- rbind(merged_bwa_bowtie_All, merged_deleterious_crg_all) %>%
   # Create a unique identifier
   mutate(CHROM_POS = paste(CHROM, POS)) %>%
   # Group by strain and CHROM_POS to check matches within strains
   group_by(strain, CHROM_POS) %>%
   summarise(
     DATA = if_else(
-      n() > 1 & any(DATA %in% c("EmelineSIFT", "CarloSIFT")), 
-      "Both",  # If either "EmelineSIFT" or "CarloSIFT" is present, set DATA to "Both"
+      n() > 1 & any(DATA %in% c("bowtieSIFT", "bwaSIFT")), 
+      "Both",  # If either "bowtieSIFT" or "bwaSIFT" is present, set DATA to "Both"
       if_else(
         n() > 1 & any(DATA == "Both"), 
         "All",  # Assign "All" if the group has >1 row and contains "Both"
@@ -700,16 +617,13 @@ merged_Carlo_Emeline_Parent_All <- rbind(merged_Carlo_Emeline_All, merged_delete
   ungroup()
 
 # Dataframe with variants from all 3 categories
-merged_Common_All <- merged_Carlo_Emeline_Parent_All %>%
+merged_Common_All <- merged_bwa_bowtie_crg_All %>%
   # Filter relevant DATA categories
-  filter(DATA %in% c("All", "CarloSIFT", "EmelineSIFT", "ParentSIFT"))
+  filter(DATA %in% c("All", "bwaSIFT", "bowtieSIFT", "crgSIFT"))
 
 merged_final <- merged_Common_All %>%
   filter(strain %in% c("RM MatAlpha", "BY MatA", "YPS163 MatA", 
                        "Clib219 MatAlpha", "CBS2888 MatA", "PW5 MatA", "Clib413 MatA"))
-
-# Save the merged dataframe to a CSV file
-# write_xlsx(merged_final, "variants.xlsx")
 
 # Helper function to calculate percentages for plotting
 calculate_percentage <- function(df, column) {
@@ -721,25 +635,25 @@ calculate_percentage <- function(df, column) {
 
 # Plots
 plots <- list(
-  ggplot(calculate_percentage(merged_Carlo_Emeline_All, "strain"), 
+  ggplot(calculate_percentage(merged_bwa_bowtie_All, "strain"), 
          aes(x = reorder(strain, count), y = percentage)) +
     geom_bar(stat = "identity", fill = "lightsteelblue") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     labs(y = "Percentage", x = "Strain"),
   
-  ggplot(calculate_percentage(merged_Carlo_Emeline_All, "DATA"), 
+  ggplot(calculate_percentage(merged_bwa_bowtie_All, "DATA"), 
          aes(x = reorder(DATA, count), y = percentage)) +
     geom_bar(stat = "identity", fill = "lightgoldenrod3") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     labs(y = "Percentage", x = "DATA"),
   
-  ggplot(calculate_percentage(merged_Carlo_Emeline_Parent_All, "strain"), 
+  ggplot(calculate_percentage(merged_bwa_bowtie_crg_All, "strain"), 
          aes(x = reorder(strain, count), y = percentage)) +
     geom_bar(stat = "identity", fill = "lightsteelblue") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     labs(y = "Percentage", x = "Strain"),
   
-  ggplot(calculate_percentage(merged_Carlo_Emeline_Parent_All, "DATA"), 
+  ggplot(calculate_percentage(merged_bwa_bowtie_crg_All, "DATA"), 
          aes(x = reorder(DATA, count), y = percentage)) +
     geom_bar(stat = "identity", fill = "lightgoldenrod3") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -752,9 +666,9 @@ print(grid)
 ```
 
 
-# 10. Merge based on key genes for metabolic pathways
+# 7. Merge based on key genes for metabolic pathways
 ```{r}
-key_genes <- read.delim("/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/514_MitoGenes_then_55Glycogluco_Genes.txt")
+key_genes <- read.delim("/path-to-keyfiles/514_MitoGenes_then_55Glycogluco_Genes.txt")
 
 colnames(key_genes) <- key_genes[2,]
 key_genes <- key_genes[-c(1,2),]
@@ -784,19 +698,6 @@ filtered_matching_merged <- matching_merged %>%
     TRUE ~ "Outside Range" # Fallback for any unexpected values
   ))
 
-# filtered_matching_merged <- filtered_matching_merged %>%
-#   # Explicitly set the order of SIFT_PREDICTION
-#   mutate(SIFT_PREDICTION = factor(
-#     SIFT_PREDICTION,
-#     levels = c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")
-#   )) %>%
-#   # Sort data by the custom order of SIFT_PREDICTION and within each group by SIFT_SCORE
-#   arrange(SIFT_PREDICTION, SIFT_SCORE) %>%
-#   # Add row ranks within each group
-#   group_by(SIFT_PREDICTION) %>%
-#   mutate(Rank = row_number()) %>%
-#   ungroup()
-
 # Group by position category and by variant type
 frameshift_count <- filtered_matching_merged %>%
   group_by(Position_Category, VARIANT_TYPE) %>%
@@ -821,7 +722,7 @@ sum(duplicated(key_genes$GENE_ID))
 ```
 
 
-# 11. Visualization
+# 8. Visualization
 ```{r}
 
 # Step 1: Create SNP column
@@ -907,14 +808,6 @@ upset_plot <- ComplexUpset::upset(
 )
 
 
-# Save the plot
-# ggsave(
-#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Upset_28112024.pdf", 
-#   plot = upset_plot, 
-#   width = 20, 
-#   height = 7
-# )
-
 # Print the number of SNPs per position in the gene
 table(FinalSNPsData$Position_Category)
 
@@ -928,9 +821,8 @@ table(unique_SNP$Position_Category)
 ```
 
 
-# 11.1 Stats for the thesis regarding the plot
+# 8.1 Stats for the thesis regarding the plot
 ```{r}
-library(dplyr)
 
 # Total SNP count per strain
 strain_snp_counts <- FinalSNPsData %>%
@@ -969,41 +861,5 @@ position_percentages <- unique_SNP %>%
      mutate(percentage = 100 * n / sum(n))
 
 position_percentages
-```
-
-
-# 12. Writing excel files which will then be formatted
-```{r}
-
-matching_tsv <- filtered_matching_merged %>%
-  select(CHROM, POS, REF_ALLELE, ALT_ALLELE, GENE_ID.x, strain) %>%
-  rename(
-    REF = REF_ALLELE,
-    ALT = ALT_ALLELE,
-    ID = GENE_ID.x
-  ) %>%
-  mutate(
-    CHROM = ifelse(grepl("^[IVXLCDM]+$", CHROM), paste0("chr", CHROM), CHROM)
-  )
-
-# Subset matching_tsv into a list of data frames by the 'strain' column
-vcfready <- matching_tsv %>%
-  # Split the dataset into a list of data frames, one per unique strain
-  split(.$strain) %>%
-  # Remove the 'strain' column from each subset
-  lapply(function(df) df %>% select(-strain))
-  
-# Rename the list elements to remove spaces and the second word
-names(vcfready) <- names(vcfready) %>%
-  sub(" .*", "", .)
-  
-# Write each data frame in `vcfready` to a TSV file
-for (i in seq_along(vcfready)) {
-  # Construct the file path with a unique name for each strain
-  file_name <- paste0("/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Results/strain_", names(vcfready)[i], ".tsv")
-  
-  # Write the data frame to the file
-  write_tsv(vcfready[[i]], file_name)
-}
 ```
 
