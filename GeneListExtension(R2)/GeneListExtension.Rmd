@@ -1,5 +1,5 @@
 ---
-title: "teyssonniere"
+title: "GeneListExpansion"
 author: "Carlo Alberto Zani"
 date: "2025-01-20"
 output: html_document
@@ -13,16 +13,23 @@ library(limma)
 library(readxl)
 library(tidyr)
 library(ggsignif)
+library(forcats)
+library(dplyr)
+library(dendextend)
+library(Rtsne)
+library(clusterProfiler)
+library(org.Sc.sgd.db)
+library(gridExtra)
+library(tibble)
 
-rna = read.delim("/Users/carloalbertozani/Documents/Internship/teyssonniere/RNAseq_969_log2tpm_matrix.tab", header = TRUE, sep = ",", stringsAsFactors = FALSE)
-protein = read.delim("/Users/carloalbertozani/Documents/Internship/teyssonniere/DIA-NN_1.8/SCmedia_MBR_CommonPeptide_Approach/211025_ProteomicsData_SCmediaMBR_DIA-NN-1.8_genes_imputed_KNN_ORF.tsv")
+rna = read.delim("/path-to-keyfiles/RNAseq_969_log2tpm_matrix.tab", header = TRUE, sep = ",", stringsAsFactors = FALSE)
 
 rna <- rna %>%
   filter(str_starts(ORF, "Y"))
 
-key_file <- read.csv("/Users/carloalbertozani/Documents/Internship/teyssonniere/FinalStrainInfo1040.csv", sep = ";")
+key_file <- read.csv("/path-to-keyfiles/FinalStrainInfo1040.csv", sep = ";")
 
-gene_list <- read_excel('/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/514_MitoGenes_then_55Glycogluco_Genes.xlsm')
+gene_list <- read_excel('/path-to-keyfiles/514_MitoGenes_then_55Glycogluco_Genes.xlsm')
 
 ```
 
@@ -39,8 +46,6 @@ top_20_isolation <- key_file %>%
   filter(Standardized_name %in% colnames(rna)) %>%
   filter(Eco_Origin %in% top_20_isolation$Eco_Origin)
 
- library(forcats)
-
  # Create the count plot
  ggplot(key_file_filtered, aes(x = fct_infreq(Eco_Origin))) +
      geom_bar(fill = "steelblue", color = "black") +
@@ -55,8 +60,6 @@ top_20_isolation <- key_file %>%
 
 # Hierchical clustering of the sample
 ```{r}
-library(dplyr)
-library(dendextend)
 
 # Duplicate and clean the dataframe
 rna_hc <- rna
@@ -116,7 +119,6 @@ legend("topright", legend = names(isolation_colors), fill = isolation_colors, ti
 
 # T-SNE RNA data
 ```{r}
-library("Rtsne")
 set.seed(222)
 matrix <- as.matrix(t(rna_hc))
 
@@ -192,24 +194,6 @@ key_file_alcohol <- key_file %>%
   filter(Eco_Origin != "Unknown") %>%
   mutate(Expression_Group = ifelse(Standardized_name %in% alcohol_strains, "High", "Low"))
 
-# # Count occurrences of each Eco_Origin category
-# eco_origin_counts <- key_file_alcohol %>%
-#   dplyr::count(Eco_Origin, sort = TRUE)
-# 
-# # Create the count plot with different colors for high and low alcohol strains
-# ggplot(key_file_alcohol, aes(x = fct_infreq(Eco_Origin), fill = Expression_Group)) +
-#   geom_bar(color = "black", position = "dodge") +
-#   theme_classic() +
-#   labs(title = " ",
-#        x = "Eco_Origin",
-#        y = "Count",
-#        fill = "Strain Specific Relative Expression") +
-#   scale_fill_manual(values = c("High" = "firebrick", "Low" = "steelblue")) +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-#         panel.grid = element_blank(),
-#         panel.border = element_rect(color = "black", fill = NA, size = 1),
-#   )
-
 # Compute high and low counts per Eco_Origin
 eco_origin_ratio <- key_file_alcohol %>%
   group_by(Eco_Origin, Expression_Group) %>%
@@ -252,8 +236,6 @@ top_adh2_correlated <- sort(adh2_correlations, decreasing = TRUE)[1:10]
 # Print the top correlated genes
 top_adh1_correlated
 top_adh2_correlated
-
-library(gridExtra)  # or use patchwork package
 
 # Extract expression values for YCR013C, YAL037C-B, and ADH1
 expression_data <- data.frame(
@@ -324,16 +306,10 @@ ggplot(expression_long, aes(x = Eco_Origin, y = Expression, fill = Eco_Origin)) 
               textsize = 4, 
               y_position = max(expression_long$Expression, na.rm = TRUE) + 0.5)  # Adjust y_position as needed
 
-# # Or for actual values
-#   stat_compare_means(comparisons = list(c("Sake", "Bioethanol")), 
-#                      label = "p.format", 
-#                      method = "t.test",  # Change to "wilcox.test" for non-parametric
-#                      size = 5, 
-#                      y.position = max(expression_long$Expression, na.rm = TRUE) + 0.5)
 ```
 
 
-# DEA. Interesting: dairy, bioethanol, sake
+# DEA
 ```{r}
 
 # Function to perform differential expression analysis
@@ -427,8 +403,6 @@ theme(legend.position = )
 
 # GSEA
 ```{r}
-library(clusterProfiler)
-library(org.Sc.sgd.db)
 
 perform_gsea_ora <- function(results_list, comparison_name) {
   # Extract results dataframe
@@ -488,7 +462,7 @@ perform_gsea_ora <- function(results_list, comparison_name) {
   return(list(gsea_results = gsea_results, gsea_plot = gsea_dot_plot, ora_results = ora_results, ora_plot = ora_dot_plot, entrezid2orf = filtered_data))
 }
 
-# Example usage for three comparisons
+# 3 comparisons
 dairy_bioethanol_results <- perform_gsea_ora(results_dairy_bio, "Dairy vs Bioethanol (Reference)")
 sake_bioethanol_results <- perform_gsea_ora(results_sake_bio, "Sake vs Bioethanol (Reference)")
 sake_dairy_results <- perform_gsea_ora(results_sake_dairy, "Sake vs Dairy (Reference)")
@@ -561,10 +535,8 @@ print(gsea_dot_plot)
 ```
 
 
-# Next steps: map back from the ENTREZID to the ORF and then collect a list of the genes found significantly expressed in those pathways
+# Map back from the ENTREZID to the ORF and then collect a list of the genes found significantly expressed in those pathways
 ```{r}
-
-library(tibble)
 
 # The list is added to a dataframe and I need to check if it was already present or if it is unique
 # Extract unique ENTREZ IDs from core_enrichment by splitting the strings
@@ -602,72 +574,7 @@ filtered_total <- filtered_total %>%
   filter(!ORF %in% matched) %>%
   distinct(ORF, .keep_all = TRUE)
 
-# Results: 65 genes with no log filter, 10 with log filter of 0.5
-
-gene_list_file <- read_excel('/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/Additions to the gene list.xlsx')
-
-gene_list_file <- gene_list_file %>%
-  filter(`Gene name` != "N/A") %>%
-  dplyr::select(-`Reason for addition`)
+# Final list of Genes
+print(filtered_total)
 
 ```
-
-
-# Correlation between gene expression and proteins
-```{r pro-gene corr, echo=FALSE}
-  # Filter rows where ORF matches Protein.Group
-rna_protein_matched <- rna %>%
-  filter(ORF %in% protein$Protein.Group)
-
-protein_matched <- protein %>%
-  filter(Protein.Group %in% rna_protein_matched$ORF)
-
-rownames(rna_protein_matched) <- rna_protein_matched$ORF
-rownames(protein_matched) <- protein_matched$Protein.Group
-
-# Match columns between RNA and protein data
-common_columns <- intersect(colnames(rna_protein_matched), colnames(protein_matched))
-
-# Subset the RNA and protein data to only include matching columns
-rna_protein_matched <- rna_protein_matched[, common_columns]
-protein_matched <- protein_matched[, common_columns]
-
-gen_prot_cor <- cor(t(rna_protein_matched), t(protein_matched), method = "spearman")
-
-sample_cor <- cor(rna_protein_matched, protein_matched, method = "spearman")
-
-# Create the data frame
-results_genes <- data.frame(diag(gen_prot_cor))
-
-results_samples <- data.frame(diag(sample_cor))
-
-# Median for the correlation distribution
-median_correlation <- median(results_genes$diag.gen_prot_cor., na.rm = TRUE)
-
-median_samples <- median(results_samples$diag.sample_cor., na.rm = TRUE)
-
-# Create the density plot
-ggplot(results_genes, aes(x = diag.gen_prot_cor.)) +
-  geom_density(fill = "blue", alpha = 0.5) +  # Density plot with a blue fill and some transparency
-  geom_vline(xintercept = median_correlation, color = "red", linetype = "dashed", size = 1) +  # Add median line
-  labs(
-    title = "Gene-Protein Correlation",
-    x = "Correlation",
-    y = "Density",
-    caption = paste("Median Correlation:", round(median_correlation, 3))
-  ) +
-  theme_minimal()
-
-# Create the density plot
-ggplot(results_samples, aes(x = diag.sample_cor.)) +
-  geom_density(fill = "blue", alpha = 0.5) +  # Density plot with a blue fill and some transparency
-  geom_vline(xintercept = median_samples, color = "red", linetype = "dashed", size = 1) +  # Add median line
-  labs(
-    title = "Sample Correlation",
-    x = "Correlation",
-    y = "Density",
-    caption = paste("Median Correlation:", round(median_samples, 3))
-  ) +
-  theme_minimal()
-```
-
