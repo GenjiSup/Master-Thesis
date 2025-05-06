@@ -12,6 +12,7 @@ R2 – Gene List Expansion
 The second objective involves expanding an existing list of mitochondrial and metabolic genes by incorporating additional targets derived from transcriptomic analysis. Differential expression analysis (DEA) and gene set enrichment analysis (GSEA) were performed on a pan-transcriptomic RNA-seq dataset from Caudal et al., covering over 900 natural yeast isolates. The focus was on identifying genes with consistent expression shifts across ecological origins, particularly those involved in fermentation and ethanol metabolism.
 
 Repository Structure
+
 01_variant_overlap_analysis/
 Scripts used to compare variant overlap between CRG and laboratory WGS datasets, using both BWA and Bowtie2 alignments.
 
