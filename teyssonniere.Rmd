@@ -1,0 +1,673 @@
+---
+title: "teyssonniere"
+author: "Carlo Alberto Zani"
+date: "2025-01-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(limma)
+library(readxl)
+library(tidyr)
+library(ggsignif)
+
+rna = read.delim("/Users/carloalbertozani/Documents/Internship/teyssonniere/RNAseq_969_log2tpm_matrix.tab", header = TRUE, sep = ",", stringsAsFactors = FALSE)
+protein = read.delim("/Users/carloalbertozani/Documents/Internship/teyssonniere/DIA-NN_1.8/SCmedia_MBR_CommonPeptide_Approach/211025_ProteomicsData_SCmediaMBR_DIA-NN-1.8_genes_imputed_KNN_ORF.tsv")
+
+rna <- rna %>%
+  filter(str_starts(ORF, "Y"))
+
+key_file <- read.csv("/Users/carloalbertozani/Documents/Internship/teyssonniere/FinalStrainInfo1040.csv", sep = ";")
+
+gene_list <- read_excel('/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/514_MitoGenes_then_55Glycogluco_Genes.xlsm')
+
+```
+
+
+# Check the top categories
+```{r}
+top_20_isolation <- key_file %>%
+     dplyr::count(Eco_Origin, sort = TRUE) %>%
+     top_n(18, n)
+ 
+ # Filter the original data to include only the top 20 categories
+ key_file_filtered <- key_file %>%
+  filter(Eco_Origin != "Unknown") %>%
+  filter(Standardized_name %in% colnames(rna)) %>%
+  filter(Eco_Origin %in% top_20_isolation$Eco_Origin)
+
+ library(forcats)
+
+ # Create the count plot
+ ggplot(key_file_filtered, aes(x = fct_infreq(Eco_Origin))) +
+     geom_bar(fill = "steelblue", color = "black") +
+     theme_minimal() +
+     labs(title = "Count Plot of Top 20 Isolation Categories",
+          x = "Isolation",
+          y = "Count") +
+     theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+# Hierchical clustering of the sample
+```{r}
+library(dplyr)
+library(dendextend)
+
+# Duplicate and clean the dataframe
+rna_hc <- rna
+rownames(rna_hc) <- rna_hc$ORF
+rna_hc <- rna_hc[, colnames(rna_hc) != "ORF"]
+
+# Remove the unknown isolates (not interesting)
+unknown_strains <- key_file %>%
+  filter(Eco_Origin == "Unknown") %>%
+  pull(Standardized_name)
+
+# Filter RNA data from the unknown
+rna_hc <- rna_hc %>%
+  dplyr::select(-any_of(unknown_strains))
+
+# Transpose the data
+rna_t <- t(rna_hc)
+
+# Compute the distance matrix
+dist_matrix <- dist(rna_t, method = "euclidean")
+
+# Perform hierarchical clustering
+hc <- hclust(dist_matrix, method = "ward.D2")
+
+# Convert to dendrogram
+dend <- as.dendrogram(hc)
+
+# Extract Isolation category for each sample
+isolation_categories <- key_file %>%
+  filter(Standardized_name %in% colnames(rna_hc)) %>%
+  arrange(match(Standardized_name, colnames(rna_hc))) %>%
+  pull(Eco_Origin)
+
+isolation_colors <- c("Dairy" = "steelblue", "Sake" = "burlywood", "Bioethanol" = "forestgreen")
+
+# Match the colors to the categories in isolation_categories
+col_car_type <- isolation_colors[isolation_categories]
+
+# Reorder colors based on dendrogram order (to match the leaves)
+order_leaves <- order.dendrogram(dend)
+col_car_type <- col_car_type[order_leaves]
+
+# Apply colors to branches
+dend <- color_branches(dend, col = col_car_type)
+
+# Remove labels from the dendrogram
+labels(dend) <- NULL
+
+# Plot the colored dendrogram without labels
+plot(dend, main = "Hierarchical Clustering of Strains", xlab = "Strains", sub = "")
+
+# Add a legend for specific categories (Dairy, Wine, Sake)
+legend("topright", legend = names(isolation_colors), fill = isolation_colors, title = "Eco Origin Source")
+
+```
+
+
+# T-SNE RNA data
+```{r}
+library("Rtsne")
+set.seed(222)
+matrix <- as.matrix(t(rna_hc))
+
+# Calculate tSNE using Rtsne
+tsne_out <- Rtsne(matrix)
+
+# Convert results to a dataframe
+tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                        y = tsne_out$Y[,2], 
+                        Standardized_name = colnames(rna_hc))  # Correct mapping
+
+# Merge with Isolation data from keyfile
+tsne_plot <- tsne_plot %>%
+  left_join(dplyr::select(key_file, Standardized_name, Eco_Origin), by = "Standardized_name")
+
+# Quantify the counts
+ecoorigin_percentages <- tsne_plot %>%
+     count(Eco_Origin) %>%
+     mutate(percentage = 100 * n / sum(n))
+
+ecoorigin_percentages
+
+# Define specific colors only for selected categories
+selected_categories <- c("Dairy", "Bioethanol", "Sake")
+category_colors <- c(
+  "Sake" = "goldenrod1",
+  "Wine" = "firebrick2",
+  "Fruit" = "purple",
+  "Dairy" = "steelblue",
+  "Bioethanol" = "forestgreen",
+  "Sake" = "burlywood"
+)
+
+# Assign "Other" as gray (or NA for transparency)
+tsne_plot <- tsne_plot %>%
+  mutate(Eco_Origin = ifelse(Eco_Origin %in% selected_categories, Eco_Origin, "Other"))
+
+# Plot with manual color scale
+ggplot(tsne_plot, aes(x = x, y = y, color = Eco_Origin)) +
+    geom_point(size = 3, alpha = 0.7) +
+    theme_minimal() +
+    labs(title = " ",
+         x = "t-SNE 1",
+         y = "t-SNE 2") +
+    scale_color_manual(values = c(category_colors, "Other" = "gray78")) +
+    theme(
+        panel.border = element_rect(color = "black", fill = NA, size = 1),  # Adds black borders
+        panel.grid = element_blank()  # Removes grid structure
+    )
+
+```
+
+
+# ADH1 and ADH2 gene correlation
+```{r}
+# Calculate quartiles for ADH1 (YOL086C) and ADH2 (YMR303C), the former is used for ethanol production while the latter for ethanol usage
+low_quartile <- quantile(rna_hc["YOL086C", ], 0.15, na.rm = TRUE)
+high_quartile <- quantile(rna_hc["YOL086C", ], 0.85, na.rm = TRUE)
+
+# Filter high and low expression groups
+high_expr <- rna_hc %>%
+  dplyr::select(which(rna_hc["YOL086C", ] >= high_quartile))
+
+low_expr <- rna_hc %>%
+  dplyr::select(which(rna_hc["YOL086C", ] <= low_quartile))
+
+# Get the strain names
+alcohol_strains <- colnames(high_expr)
+low_alcohol_strains <- colnames(low_expr)
+
+key_file_alcohol <- key_file %>%
+  filter(Standardized_name %in% c(alcohol_strains, low_alcohol_strains)) %>%
+  filter(Eco_Origin != "Unknown") %>%
+  mutate(Expression_Group = ifelse(Standardized_name %in% alcohol_strains, "High", "Low"))
+
+# # Count occurrences of each Eco_Origin category
+# eco_origin_counts <- key_file_alcohol %>%
+#   dplyr::count(Eco_Origin, sort = TRUE)
+# 
+# # Create the count plot with different colors for high and low alcohol strains
+# ggplot(key_file_alcohol, aes(x = fct_infreq(Eco_Origin), fill = Expression_Group)) +
+#   geom_bar(color = "black", position = "dodge") +
+#   theme_classic() +
+#   labs(title = " ",
+#        x = "Eco_Origin",
+#        y = "Count",
+#        fill = "Strain Specific Relative Expression") +
+#   scale_fill_manual(values = c("High" = "firebrick", "Low" = "steelblue")) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         panel.grid = element_blank(),
+#         panel.border = element_rect(color = "black", fill = NA, size = 1),
+#   )
+
+# Compute high and low counts per Eco_Origin
+eco_origin_ratio <- key_file_alcohol %>%
+  group_by(Eco_Origin, Expression_Group) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = Expression_Group, values_from = Count, values_fill = 0) %>%
+  filter(High >= 5 | Low >= 5) %>%
+  mutate(
+    Total = High + Low,
+    Ratio = (High - Low) / Total
+  )
+
+# Plot
+ggplot(eco_origin_ratio, aes(x = fct_reorder(Eco_Origin, Ratio), y = Ratio, fill = Ratio)) +
+  geom_col(color = "black") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_fill_gradient2(low = "steelblue", mid = "gray90", high = "firebrick", midpoint = 0) +
+  scale_y_continuous(limits = c(-1, 1)) +
+  theme_classic() +
+  labs(x = "Eco-origin",
+       y = "Normalized Ratio (High - Low) / Total") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, size = 1))
+
+# Extract ADH1 and ADH2 expression values as vectors
+ADH1 <- as.numeric(rna_hc["YOL086C", ])
+ADH2 <- as.numeric(rna_hc["YMR303C", ])
+
+# Transpose the dataset so each gene is a column
+rna_hc_t <- t(rna_hc)  # Now genes are columns and strains are rows
+
+# Calculate correlations with ADH1 and ADH2
+adh1_correlations <- apply(rna_hc_t, 2, function(x) cor(x, ADH1))
+adh2_correlations <- apply(rna_hc_t, 2, function(x) cor(x, ADH2))
+
+# View the top correlated genes (optional)
+top_adh1_correlated <- sort(adh1_correlations, decreasing = TRUE)[1:10]
+top_adh2_correlated <- sort(adh2_correlations, decreasing = TRUE)[1:10]
+
+# Print the top correlated genes
+top_adh1_correlated
+top_adh2_correlated
+
+library(gridExtra)  # or use patchwork package
+
+# Extract expression values for YCR013C, YAL037C-B, and ADH1
+expression_data <- data.frame(
+  Strain = colnames(rna_hc),
+  YCR013C = as.numeric(rna_hc["YCR013C", ]),
+  YAL037C_B = as.numeric(rna_hc["YAL037C-B", ]),
+  ADH1 = as.numeric(rna_hc["YOL086C", ])
+)
+
+# Calculate the correlations between YCR013C and ADH1, and YAL037C-B and ADH1
+cor_YCR013C_ADH1 <- cor(expression_data$YCR013C, expression_data$ADH1, use = "complete.obs")
+cor_YAL037C_B_ADH1 <- cor(expression_data$YAL037C_B, expression_data$ADH1, use = "complete.obs")
+
+# Create scatter plots
+p1 <- ggplot(expression_data, aes(x = YCR013C, y = ADH1)) +
+  geom_point(color = "firebrick", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "black", linetype = "dashed") +
+  labs(x = "Expression Level of YCR013C", y = "Expression Level of ADH1") +
+  ggtitle(paste("Correlation: r =", round(cor_YCR013C_ADH1, 2))) +
+  theme_classic()
+
+p2 <- ggplot(expression_data, aes(x = YAL037C_B, y = ADH1)) +
+  geom_point(color = "firebrick", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "black", linetype = "dashed") +
+  labs(x = "Expression Level of YAL037C-B", y = "Expression Level of ADH1") +
+  ggtitle(paste("Correlation: r =", round(cor_YAL037C_B_ADH1, 2))) +
+  theme_classic()
+
+# Combine the two plots into a single plot
+grid.arrange(p1, p2, ncol = 2)  # Plots will appear side by side
+
+```
+
+
+# Violin Plot
+```{r}
+# Extract ADH1 and ADH2 expression values
+expression_data <- data.frame(
+  Strain = colnames(rna_hc),
+  ADH1 = as.numeric(rna_hc["YOL086C", ]),
+  ADH2 = as.numeric(rna_hc["YMR303C", ])
+)
+
+# Merge with key_file to add Eco_Origin
+expression_data <- expression_data %>%
+  left_join(key_file, by = c("Strain" = "Standardized_name")) %>%
+  filter(Eco_Origin %in% c("Sake", "Bioethanol"))  # Keep relevant strains
+
+# Convert Eco_Origin to a factor for ordered plotting
+expression_data$Eco_Origin <- factor(expression_data$Eco_Origin, levels = c("Sake", "Bioethanol"))
+
+# Pivot data for plotting
+expression_long <- expression_data %>%
+  pivot_longer(cols = c(ADH1, ADH2), names_to = "Gene", values_to = "Expression")
+
+# Create violin plot with significance bars
+ggplot(expression_long, aes(x = Eco_Origin, y = Expression, fill = Eco_Origin)) +
+  geom_violin(trim = FALSE, alpha = 0.6) +
+  geom_jitter(width = 0.2, alpha = 0.6) +  # Add individual points
+  facet_wrap(~Gene, scales = "free_y") +  # Separate plots for ADH1 and ADH2
+  theme_classic() +
+  labs(x = "Eco-ori",
+       y = "Expression Level") +
+  scale_fill_manual(values = c("Sake" = "firebrick", "Bioethanol" = "steelblue")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_signif(comparisons = list(c("Sake", "Bioethanol")), 
+              map_signif_level = TRUE, 
+              textsize = 4, 
+              y_position = max(expression_long$Expression, na.rm = TRUE) + 0.5)  # Adjust y_position as needed
+
+# # Or for actual values
+#   stat_compare_means(comparisons = list(c("Sake", "Bioethanol")), 
+#                      label = "p.format", 
+#                      method = "t.test",  # Change to "wilcox.test" for non-parametric
+#                      size = 5, 
+#                      y.position = max(expression_long$Expression, na.rm = TRUE) + 0.5)
+```
+
+
+# DEA. Interesting: dairy, bioethanol, sake
+```{r}
+
+# Function to perform differential expression analysis
+perform_DE_analysis <- function(rna_data, key_file, group1, group2, comparison_name) {
+  
+  # Extract strains for both groups
+  group1_strains <- key_file %>%
+    filter(Eco_Origin == group1) %>%
+    pull(Standardized_name)
+  
+  group2_strains <- key_file %>%
+    filter(Eco_Origin == group2) %>%
+    pull(Standardized_name)
+  
+  # Subset RNA data for selected strains
+  selected_data <- rna_data %>%
+    dplyr::select(any_of(c(group1_strains, group2_strains, "ORF")))
+  
+  # Assign row names and remove ORF column
+  rownames(selected_data) <- selected_data$ORF
+  selected_data <- selected_data[, !colnames(selected_data) %in% "ORF"]
+  
+  # Create metadata
+  sample_info <- data.frame(
+    Sample = colnames(selected_data),
+    Group = ifelse(colnames(selected_data) %in% group1_strains, group1, group2)
+  )
+  
+  # Convert Group to factor (set group1 as reference)
+  sample_info$Group <- factor(sample_info$Group, levels = c(group1, group2))
+  
+  # Create the design matrix
+  design_matrix <- model.matrix(~ Group, data = sample_info)
+  
+  # Fit linear model
+  fit <- lmFit(selected_data, design_matrix)
+  fit <- eBayes(fit, trend = TRUE)
+  
+  # Extract results
+  results <- topTable(fit, coef = paste0("Group", group2), adjust.method = "fdr", number = Inf)
+  results <- results[order(results$adj.P.Val, na.last = NA), ]
+  
+  # Volcano Plot Preparation
+  threshold_padj <- 0.05
+  threshold_logFC <- 0
+  results <- results %>%
+  mutate(Significance = case_when(
+    adj.P.Val < threshold_padj & logFC > threshold_logFC ~ "Upregulated",
+    adj.P.Val < threshold_padj & logFC < -threshold_logFC ~ "Downregulated",
+    TRUE ~ "Not Significant"
+  ))
+  
+  # Plot Volcano
+  plot <- ggplot(results, aes(x = logFC, y = -log10(adj.P.Val), color = Significance)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  scale_color_manual(values = c("Upregulated" = "firebrick", 
+                                "Downregulated" = "steelblue", 
+                                "Not Significant" = "grey78")) +
+  theme_classic() +
+  labs(title = " ", 
+       x = "Log2 FC", 
+       y = "-Log10 FDR",
+       color = "Expression") +
+  theme(legend.title = element_blank(), 
+        legend.position = "top",
+        panel.grid = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, size = 1)
+        )
+  
+  print(paste("Significantly differentially expressed genes in", comparison_name, ":", sum(results$Significance %in% c("Upregulated", "Downregulated"))))
+  
+  return(list(results = results, plot = plot))
+
+}
+
+# Call the function for all the comparisons
+results_dairy_bio <- perform_DE_analysis(rna, key_file, "Bioethanol", "Dairy", "Dairy vs Bioethanol (reference)")
+results_sake_bio <- perform_DE_analysis(rna, key_file, "Bioethanol", "Sake", "Sake vs Bioethanol (reference)")
+results_sake_dairy <- perform_DE_analysis(rna, key_file, "Dairy", "Sake", "Sake vs Dairy (reference)")
+# results_wine <- perform_DE_analysis(rna, key_file_wn, "Wine Top", "Wine Bottom", "Wine Top vs Bottom (reference)")
+
+table(results_dairy_bio$results$Significance)
+# Show the plots
+results_dairy_bio["plot"]
+results_sake_bio["plot"]
+results_sake_dairy["plot"]
+# results_wine["plot"]
+theme(legend.position = )
+```
+
+
+# GSEA
+```{r}
+library(clusterProfiler)
+library(org.Sc.sgd.db)
+
+perform_gsea_ora <- function(results_list, comparison_name) {
+  # Extract results dataframe
+  results_df <- results_list[["results"]]
+  
+  # Map ORF IDs to ENTREZ IDs
+  mapped_ids <- bitr(rownames(results_df), fromType = "ORF", toType = "ENTREZID", OrgDb = org.Sc.sgd.db)
+  unique_mapped_ids <- mapped_ids[!duplicated(mapped_ids$ORF), ]
+  
+  # Filter results to include successfully mapped genes
+  filtered_data <- results_df[rownames(results_df) %in% unique_mapped_ids$ORF, ]
+  filtered_data$ENTREZID <- unique_mapped_ids$ENTREZID[match(rownames(filtered_data), unique_mapped_ids$ORF)]
+  filtered_data <- filtered_data %>% filter(!is.na(ENTREZID))
+  
+  # Create and sort gene expression vector
+  gene_expression <- filtered_data$t
+  names(gene_expression) <- filtered_data$ENTREZID
+  sorted_gene_expression <- sort(na.omit(gene_expression), decreasing = TRUE)
+  
+  # Define KEGG organism code
+  kegg_organism_code <- "sce"
+  
+  # Perform GSEA
+  gsea_results <- gseKEGG(
+    geneList = sorted_gene_expression,
+    organism = kegg_organism_code,
+    pvalueCutoff = 0.05,
+    pAdjustMethod = "fdr",
+    keyType = "ncbi-geneid"
+  )
+  
+  # Generate GSEA dotplot
+  gsea_dot_plot <- dotplot(gsea_results)
+  
+  # Remove the long string to make the names cleaner
+  gsea_dot_plot$data <- gsea_dot_plot$data %>%
+     mutate(Description = str_remove(Description, " - Saccharomyces cerevisiae \\(budding yeast\\)"))
+  
+  # Identify significant genes
+  significant_genes <- results_df %>% filter(Significance %in% c("Upregulated", "Downregulated"))
+  significant_genes_list <- rownames(significant_genes)
+  
+  # Perform ORA
+  ora_results <- enrichKEGG(
+    gene = significant_genes_list,
+    organism = kegg_organism_code,
+    pvalueCutoff = 0.05
+  )
+  
+  # Generate ORA dotplot
+  ora_dot_plot <- dotplot(ora_results, showCategory = 10, title = paste(comparison_name, "ORA"), label_format = 80)
+  
+  # Remove the long string to make the names cleaner
+  ora_dot_plot$data <- ora_dot_plot$data %>%
+     mutate(Description = str_remove(Description, " - Saccharomyces cerevisiae \\(budding yeast\\)"))
+  
+  return(list(gsea_results = gsea_results, gsea_plot = gsea_dot_plot, ora_results = ora_results, ora_plot = ora_dot_plot, entrezid2orf = filtered_data))
+}
+
+# Example usage for three comparisons
+dairy_bioethanol_results <- perform_gsea_ora(results_dairy_bio, "Dairy vs Bioethanol (Reference)")
+sake_bioethanol_results <- perform_gsea_ora(results_sake_bio, "Sake vs Bioethanol (Reference)")
+sake_dairy_results <- perform_gsea_ora(results_sake_dairy, "Sake vs Dairy (Reference)")
+
+# Display plots
+dairy_bioethanol_results$gsea_plot
+sake_bioethanol_results$gsea_plot
+sake_dairy_results$gsea_plot
+
+# Add the Comparison column to each of your datasets (you've already done this)
+dairy_bioethanol_results$gsea_results@result$Comparison <- "Dairy vs Bioethanol"
+sake_bioethanol_results$gsea_results@result$Comparison <- "Sake vs Bioethanol"
+sake_dairy_results$gsea_results@result$Comparison <- "Sake vs Dairy"
+
+# Combine the results from all three comparisons
+combined_results <- rbind(dairy_bioethanol_results$gsea_results@result,
+                          sake_bioethanol_results$gsea_results@result,
+                          sake_dairy_results$gsea_results@result)
+
+combined_results <- combined_results %>%
+  mutate(Count = str_count(core_enrichment, "/") + 1) %>%
+  mutate(GeneRatio = Count/setSize) %>%
+  mutate(Description = str_remove(Description, " - Saccharomyces cerevisiae \\(budding yeast\\)"))
+
+# Calculate mean absolute NES for each Description, group by Description
+combined_results <- combined_results %>%
+  mutate(abs_NES = abs(NES)) %>%
+  group_by(Description) %>%
+  mutate(mean_abs_NES = mean(abs_NES)) %>%
+  ungroup() %>%  # Remove grouping after calculation
+  arrange(desc(mean_abs_NES))  # Sort by the mean absolute NES
+
+# Get the top 10 unique Descriptions based on the mean absolute NES
+top_10_descriptions <- combined_results %>%
+  distinct(Description, mean_abs_NES) %>%  # Get unique Descriptions with their mean NES
+  slice_head(n = 10) %>%  # Keep the top 10
+  pull(Description)  # Extract the Descriptions
+
+# Filter the original data to keep only the top 10 Descriptions and their duplicates
+top_10_results <- combined_results %>%
+  filter(Description %in% top_10_descriptions)
+
+# Order the Description factor by mean absolute NES in descending order
+top_10_results <- top_10_results %>%
+  mutate(Description = factor(Description, levels = unique(Description[order(mean_abs_NES)])))
+
+# Create the dot plot
+gsea_dot_plot <- ggplot(top_10_results, aes(x=Comparison, y=Description, color=p.adjust, size=Count)) +
+  geom_point(aes(fill = p.adjust), shape = 21, stroke = 0.5, color = "black") +
+  scale_color_gradient(low="red", high="blue") +
+  scale_fill_gradient(low="red", high="blue") +
+  scale_size_continuous(range = c(2, 6)) +
+  theme_classic() +
+  theme(
+    axis.text.y = element_text(size=8),
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    panel.grid.major = element_line(color = "grey92")
+  ) +
+  labs(
+    title="",
+    x=" ",
+    y="Pathway",   
+    color="q-value", 
+    size="Count"        
+  )
+
+# Display the plot
+print(gsea_dot_plot)
+
+```
+
+
+# Next steps: map back from the ENTREZID to the ORF and then collect a list of the genes found significantly expressed in those pathways
+```{r}
+
+library(tibble)
+
+# The list is added to a dataframe and I need to check if it was already present or if it is unique
+# Extract unique ENTREZ IDs from core_enrichment by splitting the strings
+core_entrez_ids <- unique(unlist(str_split(dairy_bioethanol_results$gsea_plot$data$core_enrichment, "/")))
+core_entrez_ids2 <- unique(unlist(str_split(sake_bioethanol_results$gsea_plot$data$core_enrichment, "/")))
+core_entrez_ids3 <- unique(unlist(str_split(sake_dairy_results$gsea_plot$data$core_enrichment, "/")))
+
+# Filter entrezid2orf to keep only matching ENTREZ IDs
+filtered_entrezid2orf <- dairy_bioethanol_results$entrezid2orf %>%
+  filter(ENTREZID %in% core_entrez_ids) %>%
+  filter(Significance %in% c("Upregulated", "Downregulated")) %>%
+  filter(logFC > 2| logFC < -2) %>%
+  mutate(Comparison = "DairyVSBioethanol") %>%
+  rownames_to_column(var = "ORF")
+
+filtered_entrezid2orf2 <- sake_bioethanol_results$entrezid2orf %>%
+  filter(ENTREZID %in% core_entrez_ids2) %>%
+  filter(Significance %in% c("Upregulated", "Downregulated")) %>%
+  filter(logFC > 2| logFC < -2) %>%
+  mutate(Comparison = "SakeVSBioethanol") %>%
+  rownames_to_column(var = "ORF")
+
+filtered_entrezid2orf3 <- sake_dairy_results$entrezid2orf %>%
+  filter(ENTREZID %in% core_entrez_ids3) %>%
+  filter(Significance %in% c("Upregulated", "Downregulated")) %>%
+  filter(logFC > 2| logFC < -2) %>%
+  mutate(Comparison = "SakeVSDairy") %>%
+  rownames_to_column(var = "ORF")
+
+filtered_total <- bind_rows(filtered_entrezid2orf, filtered_entrezid2orf2, filtered_entrezid2orf3)
+
+matched <- intersect(filtered_total$ORF, gene_list$`Standard name`)
+
+filtered_total <- filtered_total %>%
+  filter(!ORF %in% matched) %>%
+  distinct(ORF, .keep_all = TRUE)
+
+# Results: 65 genes with no log filter, 10 with log filter of 0.5
+
+gene_list_file <- read_excel('/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/Additions to the gene list.xlsx')
+
+gene_list_file <- gene_list_file %>%
+  filter(`Gene name` != "N/A") %>%
+  dplyr::select(-`Reason for addition`)
+
+```
+
+
+# Correlation between gene expression and proteins
+```{r pro-gene corr, echo=FALSE}
+  # Filter rows where ORF matches Protein.Group
+rna_protein_matched <- rna %>%
+  filter(ORF %in% protein$Protein.Group)
+
+protein_matched <- protein %>%
+  filter(Protein.Group %in% rna_protein_matched$ORF)
+
+rownames(rna_protein_matched) <- rna_protein_matched$ORF
+rownames(protein_matched) <- protein_matched$Protein.Group
+
+# Match columns between RNA and protein data
+common_columns <- intersect(colnames(rna_protein_matched), colnames(protein_matched))
+
+# Subset the RNA and protein data to only include matching columns
+rna_protein_matched <- rna_protein_matched[, common_columns]
+protein_matched <- protein_matched[, common_columns]
+
+gen_prot_cor <- cor(t(rna_protein_matched), t(protein_matched), method = "spearman")
+
+sample_cor <- cor(rna_protein_matched, protein_matched, method = "spearman")
+
+# Create the data frame
+results_genes <- data.frame(diag(gen_prot_cor))
+
+results_samples <- data.frame(diag(sample_cor))
+
+# Median for the correlation distribution
+median_correlation <- median(results_genes$diag.gen_prot_cor., na.rm = TRUE)
+
+median_samples <- median(results_samples$diag.sample_cor., na.rm = TRUE)
+
+# Create the density plot
+ggplot(results_genes, aes(x = diag.gen_prot_cor.)) +
+  geom_density(fill = "blue", alpha = 0.5) +  # Density plot with a blue fill and some transparency
+  geom_vline(xintercept = median_correlation, color = "red", linetype = "dashed", size = 1) +  # Add median line
+  labs(
+    title = "Gene-Protein Correlation",
+    x = "Correlation",
+    y = "Density",
+    caption = paste("Median Correlation:", round(median_correlation, 3))
+  ) +
+  theme_minimal()
+
+# Create the density plot
+ggplot(results_samples, aes(x = diag.sample_cor.)) +
+  geom_density(fill = "blue", alpha = 0.5) +  # Density plot with a blue fill and some transparency
+  geom_vline(xintercept = median_samples, color = "red", linetype = "dashed", size = 1) +  # Add median line
+  labs(
+    title = "Sample Correlation",
+    x = "Correlation",
+    y = "Density",
+    caption = paste("Median Correlation:", round(median_samples, 3))
+  ) +
+  theme_minimal()
+```
+

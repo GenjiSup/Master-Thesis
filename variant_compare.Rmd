@@ -1,0 +1,1009 @@
+---
+title: "Variant comparison"
+author: "Carlo Alberto Zani"
+date: "2024-11-14"
+output: html_document
+---
+
+# 0. Set Up
+```{r setup, include=FALSE}
+
+# Set working directory
+knitr::opts_knit$set(root.dir = "/Users/carloalbertozani/Documents/SIFT")
+
+# Load libraries
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(ggvenn)
+library(gridExtra)
+library(stringr)
+library(stringdist)
+library(writexl)
+library(readxl)
+library(wesanderson)
+library(ComplexUpset)
+```
+
+
+# 1. Loading SIFT files
+```{r Carlo SIFT, include=FALSE}
+# Set working directory
+setwd("/Users/carloalbertozani/Documents/CarloSIFT")
+getwd()
+data_dir <- getwd() 
+
+# Get a list of all folders within the main directory
+folders <- list.dirs(data_dir, recursive = FALSE)
+
+# Create an empty list to store the data frames
+CarloSIFT <- list()
+
+# Create a vector to store sample names and track which ones have already been seen
+seen_samples <- c()
+
+# Loop through each folder and load the XLS file inside
+for (i in seq_along(folders)) {
+  
+  # Get the file name of the XLS file inside the folder (without the full path)
+  file_name <- list.files(folders[i], pattern = "\\.xls", full.names = TRUE)
+  
+  # Check if any XLS file was found
+  if (length(file_name) > 0) {
+    # Use the file name directly as it contains the full path now
+    file_path <- file_name[1]  # Take the first file if there are multiple .xls files
+    
+    # Extract the date and sample number from the file name
+    file_basename <- basename(file_path)
+    date_sample <- sub("^(\\d{8})Tn5plate\\dCsample(\\d+)_.*$", "\\1sample\\2", file_basename)
+    
+    # Extract the date and sample number
+    date <- substr(date_sample, 1, 8)
+    sample_num <- sub(".*sample(\\d+)", "\\1", date_sample)
+    
+    # Determine suffix based on the date
+    suffix <- ifelse(date == "20230619", "1", ifelse(date == "20230901", "2", ""))
+    
+    # Construct the sample name with suffix
+    sample_name <- paste0("sample", sample_num, "_", suffix)
+    
+    # Add the sample name to the list of seen samples
+    seen_samples <- c(seen_samples, sample_name)
+    
+    # Read the file and store it in the list with a dynamic name based on the folder
+    data <- read_tsv(file_path)
+    
+    # Add "chr" prefix to each value in the CHROM column
+    data$CHROM <- paste0("chr", data$CHROM)
+    
+    # Add the sample column to the dataframe
+    data$sample <- sample_name
+    
+    # Store the data in the list
+    CarloSIFT[[paste0(sample_name)]] <- data
+  } else {
+    # Print a message if no XLS file is found in the current folder
+    message("No XLS file found in folder: ", folders[i])
+  }
+}
+
+rm(data)
+```
+
+
+
+```{r Emeline SIFT, include=FALSE}
+# Set working directory
+setwd("/Users/carloalbertozani/Documents/EmelineSIFT")
+getwd()
+data_dir <- getwd() 
+
+# Get a list of all folders within the main directory
+folders <- list.dirs(data_dir, recursive = FALSE)
+
+# Create an empty list to store the data frames
+EmelineSIFT <- list()
+
+# Create a vector to store sample names and track which ones have already been seen
+seen_samples <- c()
+
+# Loop through each folder and load the XLS file inside
+for (i in seq_along(folders)) {
+  
+  # Get the file name of the XLS file inside the folder (without the full path)
+  file_name <- list.files(folders[i], pattern = "\\.xls", full.names = TRUE)
+  
+  # Check if any XLS file was found
+  if (length(file_name) > 0) {
+    # Use the file name directly as it contains the full path now
+    file_path <- file_name[1]  # Take the first file if there are multiple .xls files
+    
+    # Extract the date and sample number from the file name
+    file_basename <- basename(file_path)
+    date_sample <- sub("^(\\d{8})Tn5plate\\dCsample(\\d+)_.*$", "\\1sample\\2", file_basename)
+    
+    # Extract the date and sample number
+    date <- substr(date_sample, 1, 8)
+    sample_num <- sub(".*sample(\\d+)", "\\1", date_sample)
+    
+    # Determine suffix based on the date
+    suffix <- ifelse(date == "20230619", "1", ifelse(date == "20230901", "2", ""))
+    
+    # Construct the sample name with suffix
+    sample_name <- paste0("sample", sample_num, "_", suffix)
+    
+    # Add the sample name to the list of seen samples
+    seen_samples <- c(seen_samples, sample_name)
+    
+    # Read the file and store it in the list with a dynamic name based on the folder
+    data <- read_tsv(file_path)
+    
+    # Add the sample column to the dataframe
+    data$sample <- sample_name
+    
+    # Store the data in the list
+    EmelineSIFT[[paste0(sample_name)]] <- data
+  } else {
+    # Print a message if no XLS file is found in the current folder
+    message("No XLS file found in folder: ", folders[i])
+  }
+}
+
+rm(data)
+```
+
+
+
+```{r Parent SIFT, include=FALSE}
+# Set working directory
+setwd("/Users/carloalbertozani/Documents/ParentSIFT")
+getwd()
+data_dir <- getwd() 
+
+# Get a list of all folders within the main directory
+folders <- list.dirs(data_dir, recursive = FALSE)
+
+ParentSIFT <- list()
+
+# Loop through each folder and load the XLS file inside
+for (i in seq_along(folders)) {
+  # Get the file name of the XLS file inside the folder (without the full path)
+  file_name <- list.files(folders [i], pattern = "\\.xls$", full.names = TRUE)
+  
+  # Check if any XLS file was found
+  if (length(file_name) > 0) {
+    # Use the file name directly as it contains the full path now
+    file_path <- file_name[1]  # Take the first file if there are multiple .xls files
+    
+    # Get the folder name
+    file_basename <- basename(file_path)
+    
+    # Extract only the part before "_SIFTannotation.xls", removing one character before it
+    cleaned_basename <- sub("_SIFTannotations\\.xls$", "", file_basename)
+    
+    data <- read_tsv(file_path)
+    
+    # Dynamically assign each dataset to a new variable with sequential names
+    ParentSIFT[[(paste0(cleaned_basename))]] <- data
+  } else {
+    # Print a message if no XLS file is found in the current folder
+    message("No XLS file found in folder: ", folders[i])
+  }
+}
+
+rm(data)
+```
+
+
+# 2. Strain aggregation
+```{r}
+# Load and merge the keys
+strain_key <- read_tsv("/Users/carloalbertozani/Documents/Keyfiles/strain_key.tsv")
+sample_key <- read_tsv("/Users/carloalbertozani/Documents/Keyfiles/sample_key.tsv")
+data_key <- inner_join(strain_key, sample_key, by = "strain_ID")
+
+# Remove the "_" from the "sample_number" column so that it matched the data names from the list
+data_key <- data_key %>%
+  mutate(sample_number = gsub("_", "", sample_number))
+
+#################
+##### Carlo #####
+#################
+for (i in seq_along(CarloSIFT)) {
+  # Extract the current sample name without the "_1" and "_2" suffixes
+  sample_name_list <- str_remove(names(CarloSIFT)[i], "_[12]$")
+  
+  # Find the matching haploid_parent info from data_key
+  haploid_parent_info <- data_key %>%
+    filter(sample_number == sample_name_list) %>%
+    pull(haploid_parent)
+  
+  # Check if haploid_parent_info is found
+  if (length(haploid_parent_info) == 1) {
+    # Add haploid_parent info as a new column to the dataframe
+    CarloSIFT[[i]] <- CarloSIFT[[i]] %>%
+      mutate(strain = word(haploid_parent_info, 1, 2)) %>%
+      dplyr::select(-sample)
+  } else {
+    warning(paste("No matching haploid_parent info found for sample:", sample_name_list))
+  }
+}
+
+###################
+##### Emeline #####
+###################
+for (i in seq_along(EmelineSIFT)) {
+  # Extract the current sample name without the "_1" and "_2" suffixes
+  sample_name_list <- str_remove(names(EmelineSIFT)[i], "_[12]$")
+  
+  # Find the matching haploid_parent info from data_key
+  haploid_parent_info <- data_key %>%
+    filter(sample_number == sample_name_list) %>%
+    pull(haploid_parent)
+  
+  # Check if haploid_parent_info is found
+  if (length(haploid_parent_info) == 1) {
+    # Add haploid_parent info as a new column to the dataframe
+    EmelineSIFT[[i]] <- EmelineSIFT[[i]] %>%
+      mutate(strain = word(haploid_parent_info, 1, 2)) %>%
+      dplyr::select(-sample)
+  } else {
+    warning(paste("No matching haploid_parent info found for sample:", sample_name_list))
+  }
+}
+
+##################
+##### Parent #####
+##################
+for (i in seq_along(ParentSIFT)) {
+  # Get the current sample name
+  sample_name_list <- names(ParentSIFT)[i]
+  
+  # Extract the first two words of 'haploid_parent' as 'strain' in data_key_variant
+  data_key_variant <- data_key %>%
+    mutate(strain = word(haploid_parent, 1, 2))
+  
+  # Compute similarity scores between the sample name and all strains
+  similarity_scores <- stringsim(sample_name_list, data_key_variant$strain)
+  
+  # Find the strain with the highest similarity score
+  best_match_index <- which.max(similarity_scores)
+  best_similarity <- similarity_scores[best_match_index]
+  
+  # Check if the best similarity is above the threshold
+  if (best_similarity >= 0.1) {
+    best_match_strain <- data_key_variant$strain[best_match_index]
+    
+    # Add the matched strain to the ParentSIFT dataframe
+    ParentSIFT[[i]] <- ParentSIFT[[i]] %>%
+      mutate(strain = best_match_strain)
+  } else {
+    warning(paste("No suitable match found for sample:", sample_name_list))
+  }
+}
+
+rm(data_key_variant, sample_key, strain_key)
+```
+
+
+# 3. Merge based on the different strains
+```{r}
+#################
+##### Carlo #####
+#################
+# Create the list to store the variants
+CarloSIFTVariant <- list()
+
+# Loop over the "CarloSIFT" list
+for (i in seq_along(CarloSIFT)) {
+  sample <- CarloSIFT[[i]]  # Extract the current sample
+  
+  strain <- sample$strain[1]  # Get the strain name
+  
+  if (strain %in% names(CarloSIFTVariant)) {
+    # If the strain already exists in the list, append the sample using rbind
+    CarloSIFTVariant[[strain]] <- rbind(CarloSIFTVariant[[strain]], sample)
+  } else {
+    # Otherwise, create a new entry in the list for this strain
+    CarloSIFTVariant[[strain]] <- sample
+  }
+}
+  
+###################
+##### Emeline #####
+###################
+# Create the list to store the variants
+EmelineSIFTVariant <- list()
+
+# Loop over the "EmelineSIFT" list
+for (i in seq_along(EmelineSIFT)) {
+  sample <- EmelineSIFT[[i]]  # Extract the current sample
+  
+  strain <- sample$strain[1]  # Get the strain name
+  
+  if (strain %in% names(EmelineSIFTVariant)) {
+    # If the strain already exists in the list, append the sample using rbind
+    EmelineSIFTVariant[[strain]] <- rbind(EmelineSIFTVariant[[strain]], sample)
+  } else {
+    # Otherwise, create a new entry in the list for this strain
+    EmelineSIFTVariant[[strain]] <- sample
+  }
+}
+
+rm(sample)
+```
+
+
+# 6. Add the sequences around the SNPs (probably not needed)
+```{r}
+ library(seqinr)
+# reference <- read.fasta("/Users/carloalbertozani/Documents/Keyfiles/GCF_000146045.2_R64_genomic.fna")
+reference2 <- read.fasta("/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Keyfiles/genome.fa")
+# 
+# # Rename the elements in the list with Roman numerals and remove the 17th chromosome
+# for (i in seq_along(reference)) {
+#   if (i == 17) {
+#     # Rename the 17th element to "Mito" (no Roman numeral for Mito)
+#     names(reference)[i] <- "Mito"
+#   } else {
+#     # Rename other elements with "chr" and their Roman numeral position
+#     names(reference)[i] <- paste0("chr", as.roman(i)[1])
+#   }
+# }
+# 
+# # Now remove the 17th element after renaming
+# reference <- reference[-17]
+# 
+# # Loop through each row in the merged_Carlo_Emeline_Parent dataframe to extract flanking sequences
+# for (i in 1:nrow(merged_Carlo_Emeline_Parent)) {
+#   chrom <- merged_Carlo_Emeline_Parent$CHROM[i]  # Get the chromosome
+#   pos <- merged_Carlo_Emeline_Parent$POS[i]     # Get the position
+# 
+#   # Check if chromosome exists in the reference genome
+#   if (chrom %in% names(reference)) {
+# 
+#     # Convert the SeqFastadna object to a string (DNA sequence)
+#     chrom_seq <- as.character(reference[[chrom]])
+# 
+#     if (toupper(chrom_seq[pos]) == merged_Carlo_Emeline_Parent$REF_ALLELE[i]) {
+#     # Define the start and end positions for 15bp before and after
+#     start_pos <- max(1, pos - 15)  # Ensure we don't go below position 1
+#     end_pos <- min(pos + 15, length(chrom_seq))  # Ensure we don't go beyond sequence length
+# 
+#     # Extract the flanking sequences (before and after the SNP)
+#     # The 'less' region is from start_pos to pos - 1
+#     less <- chrom_seq[start_pos:(pos - 1)]
+# 
+#     # The 'more' region is from pos + 1 to end_pos
+#     more <- chrom_seq[(pos + 1):end_pos]
+# 
+#     # Concatenate the vectors into strings
+#     less_str <- paste(less, collapse = "")
+#     more_str <- paste(more, collapse = "")
+# 
+#     # Add the concatenated results to the dataframe
+#     merged_Carlo_Emeline_Parent$down[i] <- less_str  # Store the concatenated 'less' sequence
+#     merged_Carlo_Emeline_Parent$up[i] <- more_str    # Store the concatenated 'more' sequence
+#   }
+#     } else {
+#     # If chromosome is not found, set NA for both flanks
+#     merged_Carlo_Emeline_Parent$down[i] <- NA
+#     merged_Carlo_Emeline_Parent$up[i] <- NA
+#   }
+# }
+
+```
+
+
+
+# 7. Venn Plots
+```{r venn function for 3 groups, echo=FALSE}
+# Corresponding names for each dataset to use in filenames
+dataset_names <- c(
+  "M22", "BY", "RM", "YPS163", "YJM145", "Clib413", 
+  "YJM978", "YJM454", "YPS1009", "I14", "Y10", "PW5", 
+  "273614", "YJM981", "CBS2888", "Clib219"
+)
+
+
+# Function to create a Venn diagram with ggvenn for three datasets
+fun_venn_diagram <- function(dataset1, dataset2, dataset3, label1 = "Dataset 1", label2 = "Dataset 2", label3 = "Dataset 3", title = "Venn Diagram") {
+  
+  # Create CHROM_POS columns for each dataset
+  dataset1$CHROM_POS <- paste(dataset1$CHROM, dataset1$POS)
+  dataset2$CHROM_POS <- paste(dataset2$CHROM, dataset2$POS)
+  dataset3$CHROM_POS <- paste(dataset3$CHROM, dataset3$POS)
+
+  # Define unique sets for the Venn diagram
+  sets <- list(
+    label1 = unique(dataset1$CHROM_POS),
+    label2 = unique(dataset2$CHROM_POS),
+    label3 = unique(dataset3$CHROM_POS)
+  )
+  
+  # Rename list keys dynamically for labels
+  names(sets) <- c(label1, label2, label3)
+
+  # Create a ggvenn plot
+  ggvenn_plot <- ggvenn(
+    sets,
+    fill_color = c("dodgerblue", "goldenrod1", "mediumseagreen"),
+    stroke_size = 0.5,
+    set_name_size = 5
+  ) +
+    ggtitle(title)
+
+  return(ggvenn_plot)
+}
+
+
+# Generate individual plots
+venn_plots <- list(
+  fun_venn_diagram(CarloSIFTVariant[["M22 MatA"]], EmelineSIFTVariant[["M22 MatA"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22"),
+  fun_venn_diagram(CarloSIFTVariant[["M22 MatAlpha"]], EmelineSIFTVariant[["M22 MatAlpha"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22 Alpha"),
+  fun_venn_diagram(CarloSIFTVariant[["BY MatA"]], EmelineSIFTVariant[["BY MatA"]], ParentSIFT[["BYa"]], "Carlo", "Emeline", "Parent", "Venn BY"),
+  fun_venn_diagram(CarloSIFTVariant[["RM MatAlpha"]], EmelineSIFTVariant[["RM MatAlpha"]], ParentSIFT[["RMx"]], "Carlo", "Emeline", "Parent", "Venn RM"),
+  fun_venn_diagram(CarloSIFTVariant[["YPS163 MatA"]], EmelineSIFTVariant[["YPS163 MatA"]], ParentSIFT[["YPS163a"]], "Carlo", "Emeline", "Parent", "Venn YPS163"),
+  fun_venn_diagram(CarloSIFTVariant[["YJM145 MatAlpha"]], EmelineSIFTVariant[["YJM145 MatAlpha"]], ParentSIFT[["YJM145x"]], "Carlo", "Emeline", "Parent", "Venn YJM145"),
+  fun_venn_diagram(CarloSIFTVariant[["Clib413 MatA"]], EmelineSIFTVariant[["Clib413 MatA"]], ParentSIFT[["CLIB413a"]], "Carlo", "Emeline", "Parent", "Venn Clib413"),
+  fun_venn_diagram(CarloSIFTVariant[["YJM978 MatAlpha"]], EmelineSIFTVariant[["YJM978 MatAlpha"]], ParentSIFT[["YJM978x"]], "Carlo", "Emeline", "Parent", "Venn YJM978"),
+  fun_venn_diagram(CarloSIFTVariant[["YJM454 MatA"]], EmelineSIFTVariant[["YJM454 MatA"]], ParentSIFT[["YJM454a"]], "Carlo", "Emeline", "Parent", "Venn YJM454"),
+  fun_venn_diagram(CarloSIFTVariant[["YPS1009 MatAlpha"]], EmelineSIFTVariant[["YPS1009 MatAlpha"]], ParentSIFT[["YPS1009x"]], "Carlo", "Emeline", "Parent", "Venn YPS1009"),
+  fun_venn_diagram(CarloSIFTVariant[["I14 MatA"]], EmelineSIFTVariant[["I14 MatA"]], ParentSIFT[["I14a"]], "Carlo", "Emeline", "Parent", "Venn I14"),
+  fun_venn_diagram(CarloSIFTVariant[["Y10 MatAlpha"]], EmelineSIFTVariant[["Y10 MatAlpha"]], ParentSIFT[["Y10x"]], "Carlo", "Emeline", "Parent", "Venn Y10"),
+  fun_venn_diagram(CarloSIFTVariant[["PW5 MatA"]], EmelineSIFTVariant[["PW5 MatA"]], ParentSIFT[["PW5a"]], "Carlo", "Emeline", "Parent", "Venn PW5"),
+  fun_venn_diagram(CarloSIFTVariant[["PW5 MatAlpha"]], EmelineSIFTVariant[["PW5 MatAlpha"]], ParentSIFT[["PW5a"]], "Carlo", "Emeline", "Parent", "Venn PW5 Alpha"),
+  fun_venn_diagram(CarloSIFTVariant[["273614 MatA"]], EmelineSIFTVariant[["273614 MatA"]], ParentSIFT[["273614xa"]], "Carlo", "Emeline", "Parent", "Venn 273614"),
+  fun_venn_diagram(CarloSIFTVariant[["YJM981 MatAlpha"]], EmelineSIFTVariant[["YJM981 MatAlpha"]], ParentSIFT[["YJM981x"]], "Carlo", "Emeline", "Parent", "Venn YJM981"),
+  fun_venn_diagram(CarloSIFTVariant[["CBS2888 MatA"]], EmelineSIFTVariant[["CBS2888 MatA"]], ParentSIFT[["CBS2888a"]], "Carlo", "Emeline", "Parent", "Venn CBS2888"),
+  fun_venn_diagram(CarloSIFTVariant[["Clib219 MatAlpha"]], EmelineSIFTVariant[["Clib219 MatAlpha"]], ParentSIFT[["CLIB219x"]], "Carlo", "Emeline", "Parent", "Venn Clib219")
+
+)
+
+# Combine plots into a grid using patchwork
+final_grid <- wrap_plots(venn_plots, ncol = 6)  # Adjust `ncol` for desired columns
+
+# Display the grid
+print(final_grid)
+
+# ggsave(
+#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/venn_grid_25112023.pdf", 
+#   plot = final_grid, 
+#   width = 40, 
+#   height = 25
+# )
+
+# Plot for thesis
+venn_thesis <- list(
+  fun_venn_diagram(CarloSIFTVariant[["BY MatA"]], EmelineSIFTVariant[["BY MatA"]], ParentSIFT[["BYa"]], "Carlo", "Emeline", "Parent", "Venn BY"),
+  fun_venn_diagram(CarloSIFTVariant[["Y10 MatAlpha"]], EmelineSIFTVariant[["Y10 MatAlpha"]], ParentSIFT[["Y10x"]], "Carlo", "Emeline", "Parent", "Venn Y10"),
+  fun_venn_diagram(CarloSIFTVariant[["M22 MatAlpha"]], EmelineSIFTVariant[["M22 MatAlpha"]], ParentSIFT[["M22"]], "Carlo", "Emeline", "Parent", "Venn M22 Alpha"),
+  fun_venn_diagram(CarloSIFTVariant[["RM MatAlpha"]], EmelineSIFTVariant[["RM MatAlpha"]], ParentSIFT[["RMx"]], "Carlo", "Emeline", "Parent", "Venn RM")
+  )
+
+# Combine plots into a grid using patchwork
+grid_thesis <- wrap_plots(venn_thesis, ncol = 2)
+
+# Display the grid
+print(grid_thesis)
+
+# ggsave(
+#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Plots/Venn.pdf", 
+#   plot = grid_thesis, 
+#   width = 40, 
+#   height = 25
+# )
+  
+
+```
+
+
+# 7.1 Stats for the Venn
+```{r}
+# Define strain mapping
+strain_info <- list(
+  "M22 MatA" = "M22",
+  "M22 MatAlpha" = "M22",
+  "BY MatA" = "BYa",
+  "RM MatAlpha" = "RMx",
+  "YPS163 MatA" = "YPS163a",
+  "YJM145 MatAlpha" = "YJM145x",
+  "Clib413 MatA" = "CLIB413a",
+  "YJM978 MatAlpha" = "YJM978x",
+  "YJM454 MatA" = "YJM454a",
+  "YPS1009 MatAlpha" = "YPS1009x",
+  "I14 MatA" = "I14a",
+  "Y10 MatAlpha" = "Y10x",
+  "PW5 MatA" = "PW5a",
+  "PW5 MatAlpha" = "PW5a",
+  "273614 MatA" = "273614xa",
+  "YJM981 MatAlpha" = "YJM981x",
+  "CBS2888 MatA" = "CBS2888a",
+  "Clib219 MatAlpha" = "CLIB219x"
+)
+
+# Initialize containers
+overlap_Carlo_Parent <- numeric()
+overlap_Emeline_Parent <- numeric()
+overlap_AllThree <- numeric()
+
+for (strain_key in names(strain_info)) {
+  parent_key <- strain_info[[strain_key]]
+  
+  carlo_df <- CarloSIFTVariant[[strain_key]]
+  emeline_df <- EmelineSIFTVariant[[strain_key]]
+  parent_df <- ParentSIFT[[parent_key]]
+  
+  if (is.null(carlo_df) || is.null(emeline_df) || is.null(parent_df)) next
+  
+  # Create CHROM_POS identifiers
+  carlo_pos <- unique(paste(carlo_df$CHROM, carlo_df$POS))
+  emeline_pos <- unique(paste(emeline_df$CHROM, emeline_df$POS))
+  parent_pos <- unique(paste(parent_df$CHROM, parent_df$POS))
+  
+  # Compute overlaps using CHROM_POS
+  carlo_parent <- length(intersect(carlo_pos, parent_pos)) / length(union(carlo_pos, parent_pos))
+  emeline_parent <- length(intersect(emeline_pos, parent_pos)) / length(union(emeline_pos, parent_pos))
+  all_three <- length(Reduce(intersect, list(carlo_pos, emeline_pos, parent_pos))) /
+               length(Reduce(union, list(carlo_pos, emeline_pos, parent_pos)))
+  
+  # Store results
+  overlap_Carlo_Parent <- c(overlap_Carlo_Parent, carlo_parent)
+  overlap_Emeline_Parent <- c(overlap_Emeline_Parent, emeline_parent)
+  overlap_AllThree <- c(overlap_AllThree, all_three)
+}
+
+# Averages
+avg_carlo_parent <- median(overlap_Carlo_Parent)
+avg_emeline_parent <- median(overlap_Emeline_Parent)
+avg_all_three <- median(overlap_AllThree)
+
+# Output
+cat("Median overlap (Replicate 1 vs Parent):", round(avg_carlo_parent, 3), "\n")
+cat("Median overlap (Replicate 2 vs Parent):", round(avg_emeline_parent, 3), "\n")
+cat("Median overlap (All three):", round(avg_all_three, 3), "\n")
+
+```
+
+
+
+# 8. Find the number of deleterious mutations
+```{r synonymous and deleterious, echo=FALSE}
+#################
+##### Carlo #####
+#################
+# Create an empty list to store the filtered samples
+CarloSIFTDeleteriousAll <- list()
+
+# Loop through each sample in CarloSIFT
+for (sample_name in names(CarloSIFTVariant)) {
+  # Access each sample
+  sample <- CarloSIFTVariant[[sample_name]]
+  
+  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  filtered_sample <- sample %>%
+#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
+#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
+    mutate(DATA = "CarloSIFT")
+  
+  # Add the filtered sample to the list
+  CarloSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+}
+
+# Merge all the filtered samples into one dataframe and ensure uniqueness
+merged_deleterious_carlo_all <- bind_rows(CarloSIFTDeleteriousAll) %>%
+  distinct()  # Remove duplicate rows if there are any
+
+###################
+##### Emeline #####
+################### 
+# Create an empty list to store the filtered samples
+EmelineSIFTDeleteriousAll <- list()
+
+# Loop through each sample in "EmelineSIFTVariant"
+for (sample_name in names(EmelineSIFTVariant)) {
+  # Access each sample
+  sample <- EmelineSIFTVariant[[sample_name]]
+  
+  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  filtered_sample <- sample %>%
+#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
+#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
+    mutate(DATA = "EmelineSIFT")
+  
+  # Add the filtered sample to the list
+  EmelineSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+}
+
+# Merge all the filtered samples into one dataframe and ensure uniqueness
+merged_deleterious_emeline_all <- bind_rows(EmelineSIFTDeleteriousAll) %>%
+  distinct()  # Remove duplicate rows if there are any
+
+##################
+##### Parent #####
+##################
+# Create an empty list to store the filtered samples
+ParentSIFTDeleteriousAll <- list()
+
+# Loop through each sample in CarloSIFT
+for (sample_name in names(ParentSIFT)) {
+  # Access each sample
+  sample <- ParentSIFT[[sample_name]]
+  
+  # Filter the sample based on VARIANT_TYPE and SIFT_PREDICTION
+  filtered_sample <- sample %>%
+#    filter(SIFT_PREDICTION %in% c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")) %>%
+#    filter(VARIANT_TYPE %in% c("SYNONYMOUS", "NONSYNONYMOUS", "STOP-GAIN", "SUBSTITUTION", "STOP-LOSS", "START-LOST")) %>%
+    mutate(DATA = "ParentSIFT")
+  
+  # Add the filtered sample to the list
+  ParentSIFTDeleteriousAll[[sample_name]] <- filtered_sample
+}
+
+merged_deleterious_parent_all <- bind_rows(ParentSIFTDeleteriousAll) %>%
+    # Remove duplicate rows
+  distinct() 
+
+rm(filtered_sample, sample)
+```
+
+
+# 9.Merge the different datasets
+```{r}
+merged_Carlo_Emeline_All <- rbind(merged_deleterious_carlo_all, merged_deleterious_emeline_all) %>%
+  # Filter out unwanted strains
+  filter(!strain %in% c("PW5 MatAlpha", "M22 MatAlpha")) %>%
+  # Create a unique identifier
+  mutate(CHROM_POS = paste(CHROM, POS)) %>%
+  # Group by strain and CHROM_POS to check matches within strains
+  group_by(strain, CHROM_POS) %>%
+  summarise(
+    DATA = if_else(n() > 1, "Both", dplyr::first(DATA)),  # Assign "Both" if CHROM_POS matches
+    across(everything(), ~ dplyr::first(.)),  # Retain all other columns
+    .groups = "drop"
+  ) %>%
+  # Arrange rows by CHROM and POS
+  arrange(CHROM, POS) %>%
+  # Perform filtering for proximity or strain differences
+  group_by(CHROM) %>%
+  ungroup() %>%
+  dplyr::select(-CHROM_POS)
+
+# Filter to only include variants found in both datasets
+merged_Carlo_Emeline_Both_All <- merged_Carlo_Emeline_All %>%
+  filter(DATA == "Both")
+
+# MERGE CARLO, EMELINE and PARENT
+merged_Carlo_Emeline_Parent_All <- rbind(merged_Carlo_Emeline_All, merged_deleterious_parent_all) %>%
+  # Create a unique identifier
+  mutate(CHROM_POS = paste(CHROM, POS)) %>%
+  # Group by strain and CHROM_POS to check matches within strains
+  group_by(strain, CHROM_POS) %>%
+  summarise(
+    DATA = if_else(
+      n() > 1 & any(DATA %in% c("EmelineSIFT", "CarloSIFT")), 
+      "Both",  # If either "EmelineSIFT" or "CarloSIFT" is present, set DATA to "Both"
+      if_else(
+        n() > 1 & any(DATA == "Both"), 
+        "All",  # Assign "All" if the group has >1 row and contains "Both"
+        dplyr::first(DATA)  # Otherwise, retain the first DATA value
+      )
+    ),
+    across(everything(), ~ dplyr::first(.)),  # Retain all other columns
+    .groups = "drop"
+  ) %>%
+  # Arrange rows by CHROM and POS
+  arrange(CHROM, POS) %>%
+  # Perform filtering for proximity or strain differences
+  group_by(CHROM) %>%
+  ungroup()
+
+# Dataframe with variants from all 3 categories
+merged_Common_All <- merged_Carlo_Emeline_Parent_All %>%
+  # Filter relevant DATA categories
+  filter(DATA %in% c("All", "CarloSIFT", "EmelineSIFT", "ParentSIFT"))
+
+merged_final <- merged_Common_All %>%
+  filter(strain %in% c("RM MatAlpha", "BY MatA", "YPS163 MatA", 
+                       "Clib219 MatAlpha", "CBS2888 MatA", "PW5 MatA", "Clib413 MatA"))
+
+# Save the merged dataframe to a CSV file
+# write_xlsx(merged_final, "variants.xlsx")
+
+# Helper function to calculate percentages for plotting
+calculate_percentage <- function(df, column) {
+  df %>%
+    group_by(!!sym(column)) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = count / sum(count) * 100)
+}
+
+# Plots
+plots <- list(
+  ggplot(calculate_percentage(merged_Carlo_Emeline_All, "strain"), 
+         aes(x = reorder(strain, count), y = percentage)) +
+    geom_bar(stat = "identity", fill = "lightsteelblue") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(y = "Percentage", x = "Strain"),
+  
+  ggplot(calculate_percentage(merged_Carlo_Emeline_All, "DATA"), 
+         aes(x = reorder(DATA, count), y = percentage)) +
+    geom_bar(stat = "identity", fill = "lightgoldenrod3") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(y = "Percentage", x = "DATA"),
+  
+  ggplot(calculate_percentage(merged_Carlo_Emeline_Parent_All, "strain"), 
+         aes(x = reorder(strain, count), y = percentage)) +
+    geom_bar(stat = "identity", fill = "lightsteelblue") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(y = "Percentage", x = "Strain"),
+  
+  ggplot(calculate_percentage(merged_Carlo_Emeline_Parent_All, "DATA"), 
+         aes(x = reorder(DATA, count), y = percentage)) +
+    geom_bar(stat = "identity", fill = "lightgoldenrod3") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(y = "Percentage", x = "DATA")
+)
+
+# Combine plots into a grid
+grid <- wrap_plots(plots, ncol = 2)
+print(grid)
+```
+
+
+# 10. Merge based on key genes for metabolic pathways
+```{r}
+key_genes <- read.delim("/Users/carloalbertozani/ownCloud/Carlo/Internship Project/Keyfiles/514_MitoGenes_then_55Glycogluco_Genes.txt")
+
+colnames(key_genes) <- key_genes[2,]
+key_genes <- key_genes[-c(1,2),]
+key_genes <- key_genes %>%
+  rename(GENE_ID = ORF) %>%
+  dplyr::select(GENE_ID, Symbol, Chr, StartBp, EndBP) %>%
+  filter(GENE_ID != "" & !is.na(GENE_ID))
+
+# Convert StartBp and EndBP to numeric in key_genes
+key_genes <- key_genes %>%
+  mutate(StartBp = as.numeric(StartBp), EndBP = as.numeric(EndBP))
+
+# Preprocess `CHROM` column in `matching_merged`
+matching_merged <- merged_Common_All %>%
+  mutate(CHROM = gsub("^chr", "", CHROM, ignore.case = TRUE))
+
+filtered_matching_merged <- matching_merged %>%
+  filter(strain %in% c("RM MatAlpha", "BY MatA", "YPS163 MatA", 
+                       "Clib219 MatAlpha", "CBS2888 MatA", "PW5 MatA", "Clib413 MatA")) %>%
+  inner_join(key_genes, by = c("CHROM" = "Chr"), relationship = "many-to-many") %>%  # Match rows based on chromosome
+  dplyr::select(-SIFT_PREDICTION) %>%
+  filter(POS >= (StartBp - 1000) & POS <= (EndBP + 1000)) %>% # Filter for positions within range
+  mutate(Position_Category = case_when(
+    POS >= StartBp & POS <= EndBP ~ "Within Gene",
+    (POS >= (StartBp - 500) & POS < StartBp) | (POS > EndBP & POS <= (EndBP + 500)) ~ "0–500 bp Flanking",
+    (POS >= (StartBp - 1000) & POS < (StartBp - 500)) | (POS > (EndBP + 500) & POS <= (EndBP + 1000)) ~ "501–1000 bp Flanking",
+    TRUE ~ "Outside Range" # Fallback for any unexpected values
+  ))
+
+# filtered_matching_merged <- filtered_matching_merged %>%
+#   # Explicitly set the order of SIFT_PREDICTION
+#   mutate(SIFT_PREDICTION = factor(
+#     SIFT_PREDICTION,
+#     levels = c("DELETERIOUS", "DELETERIOUS (*WARNING! Low confidence)", "TOLERATED")
+#   )) %>%
+#   # Sort data by the custom order of SIFT_PREDICTION and within each group by SIFT_SCORE
+#   arrange(SIFT_PREDICTION, SIFT_SCORE) %>%
+#   # Add row ranks within each group
+#   group_by(SIFT_PREDICTION) %>%
+#   mutate(Rank = row_number()) %>%
+#   ungroup()
+
+# Group by position category and by variant type
+frameshift_count <- filtered_matching_merged %>%
+  group_by(Position_Category, VARIANT_TYPE) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  group_by(VARIANT_TYPE) %>%
+  mutate(proportion = count / sum(count))  # Calculate proportion within each VARIANT_TYPE
+
+ggplot(frameshift_count, aes(x = VARIANT_TYPE, y = proportion, fill = Position_Category)) +
+  geom_bar(stat = "identity") + # Use stat = "identity" to plot proportions directly
+  coord_flip() +
+  ylab("Proportion")  # Label the y-axis as 'Proportion'
+
+# Count removed rows
+removed_rows_count <- nrow(matching_merged) - nrow(filtered_matching_merged)
+print(removed_rows_count)
+
+length(unique(filtered_matching_merged$CHROM_POS))
+length(unique(filtered_matching_merged$GENE_ID.y))
+
+sum(duplicated(key_genes$GENE_ID))
+
+```
+
+
+# 11. Visualization
+```{r}
+
+# Step 1: Create SNP column
+filtered_matching_merged$SNP <- paste(
+  filtered_matching_merged$CHROM,
+  filtered_matching_merged$POS,
+  filtered_matching_merged$REF_ALLELE,
+  filtered_matching_merged$ALT_ALLELE
+)
+
+# Step 2: Select SNP and strain
+FinalSNPsData <- filtered_matching_merged %>%
+  select(SNP, strain, Position_Category)
+
+# Create the wide format needed for upset plot
+t_wide <- FinalSNPsData %>%
+  group_by(SNP, strain, Position_Category) %>%
+  summarize(n = n(), .groups = "drop") %>%  # Manually summarize to count occurrences of SNP
+  mutate(
+    win = 1,  # Boolean for presence
+    Total = sum(n)  # Total occurrences per SNP
+  ) %>%
+  pivot_wider(
+    id_cols = c(SNP, Position_Category, Total),  # Keep SNP, Position_Category, and Total columns
+    names_from = strain,  # Wide format for strains
+    values_from = win,  # Fill from win column
+    values_fill = list(win = 0)  # Fill missing cells with 0
+  ) %>%
+  data.frame()
+
+
+colnames(t_wide) <- gsub("\\..*", "", colnames(t_wide))
+
+# Define the sets (7 strains)
+sets <- c(
+  "RM", 
+  "BY", 
+  "YPS163", 
+  "Clib219", 
+  "CBS2888", 
+  "PW5", 
+  "Clib413"
+)
+
+# View the result
+head(t_wide)
+
+# Define the palette
+pallette <- wes_palette("Chevalier1")
+
+# Manually map the colors
+color_map <- c(
+  'Within Gene' = pallette[1],
+  '0–500 bp Flanking' = pallette[2], 
+  '501–1000 bp Flanking' = pallette[3]
+)
+
+# Create the upset plot with correct color mapping
+upset_plot <- ComplexUpset::upset(
+  t_wide,
+  intersect = sets,
+  name = "Strains",
+  sort_intersections_by = c("degree", "cardinality"),
+  min_size = 5,
+  base_annotations = list(
+    'Intersection size' = intersection_size(
+      counts = FALSE,
+      mapping = aes(fill = Position_Category)
+    ) +
+      scale_fill_manual(values = color_map, name = "Relative position to the gene")  # Apply the manual color mapping here
+  ),
+  set_sizes = (
+    upset_set_size(
+      geom = geom_bar(
+        aes(fill = Position_Category),  # Map fill to Position_Category
+        width = 0.8
+      ),
+      position = 'right'
+    ) +
+      scale_fill_manual(values = color_map)  # Apply the same color mapping
+  ),
+  width_ratio = 0.1
+)
+
+
+# Save the plot
+# ggsave(
+#   filename = "/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Upset_28112024.pdf", 
+#   plot = upset_plot, 
+#   width = 20, 
+#   height = 7
+# )
+
+# Print the number of SNPs per position in the gene
+table(FinalSNPsData$Position_Category)
+
+# Check how many unique per position category
+print(upset_plot)
+unique_SNP <- FinalSNPsData %>%
+  distinct(SNP, .keep_all = TRUE)
+
+table(unique_SNP$Position_Category)
+
+```
+
+
+# 11.1 Stats for the thesis regarding the plot
+```{r}
+library(dplyr)
+
+# Total SNP count per strain
+strain_snp_counts <- FinalSNPsData %>%
+  group_by(strain) %>%
+  summarise(total_snps = n())
+
+# Count how many strains each SNP appears in
+snp_strain_counts <- FinalSNPsData %>%
+  distinct(SNP, strain) %>%
+  group_by(SNP) %>%
+  summarise(num_strains = n())
+
+# Join back to get num_strains for each SNP-strain pair
+snp_with_counts <- FinalSNPsData %>%
+  left_join(snp_strain_counts, by = "SNP")
+
+# Unique SNPs = SNPs that appear in only one strain
+unique_snp_percentages <- snp_with_counts %>%
+  filter(num_strains == 1) %>%
+  group_by(strain) %>%
+  summarise(unique_snps = n()) %>%
+  left_join(strain_snp_counts, by = "strain") %>%
+  mutate(unique_percent = 100 * unique_snps / total_snps)
+
+# Shared SNPs = SNPs that appear in multiple strains
+shared_snp_percentages <- snp_with_counts %>%
+  filter(num_strains > 1) %>%
+  group_by(strain) %>%
+  summarise(shared_snps = n()) %>%
+  left_join(strain_snp_counts, by = "strain") %>%
+  mutate(shared_percent = 100 * shared_snps / total_snps)
+
+# Percentages of position categories
+position_percentages <- unique_SNP %>%
+     count(Position_Category) %>%
+     mutate(percentage = 100 * n / sum(n))
+
+position_percentages
+```
+
+
+# 12. Writing excel files which will then be formatted
+```{r}
+
+matching_tsv <- filtered_matching_merged %>%
+  select(CHROM, POS, REF_ALLELE, ALT_ALLELE, GENE_ID.x, strain) %>%
+  rename(
+    REF = REF_ALLELE,
+    ALT = ALT_ALLELE,
+    ID = GENE_ID.x
+  ) %>%
+  mutate(
+    CHROM = ifelse(grepl("^[IVXLCDM]+$", CHROM), paste0("chr", CHROM), CHROM)
+  )
+
+# Subset matching_tsv into a list of data frames by the 'strain' column
+vcfready <- matching_tsv %>%
+  # Split the dataset into a list of data frames, one per unique strain
+  split(.$strain) %>%
+  # Remove the 'strain' column from each subset
+  lapply(function(df) df %>% select(-strain))
+  
+# Rename the list elements to remove spaces and the second word
+names(vcfready) <- names(vcfready) %>%
+  sub(" .*", "", .)
+  
+# Write each data frame in `vcfready` to a TSV file
+for (i in seq_along(vcfready)) {
+  # Construct the file path with a unique name for each strain
+  file_name <- paste0("/Users/carloalbertozani/ownCloud/Carlo/Carlo_shared/Results/strain_", names(vcfready)[i], ".tsv")
+  
+  # Write the data frame to the file
+  write_tsv(vcfready[[i]], file_name)
+}
+```
+
