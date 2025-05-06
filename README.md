@@ -1,4 +1,6 @@
 Yeast GxE Analysis – TRIUMPH Project (Master’s Thesis)
+
+
 This repository contains the scripts and supporting files used in the analysis conducted for my master’s thesis, which forms part of the larger TRIUMPH project. The goal of this work is to better understand genotype-by-environment (GxE) interactions in Saccharomyces cerevisiae by identifying strains, variants, and gene targets that influence metabolic function under different environmental conditions.
 
 The project is structured around two main research objectives:
