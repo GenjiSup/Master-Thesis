@@ -19,10 +19,7 @@ Scripts used to compare variant overlap between CRG and laboratory WGS datasets,
 Contains code for processing the RNA-seq dataset, performing differential expression analysis (DEA), and running gene set enrichment analysis (GSEA).
 
 03_data_visualization/
-Scripts to generate publication-quality figures, including volcano plots, t-SNE clustering, and expression classification plots.
-
-04_summary_outputs/
-Final tables and summary files used to support decision-making in strain and gene target selection for the upcoming MAGESTIC genome editing pipeline.
+Plots used in the thesis.
 
 References
 Bloom, J. S. et al. Rare variants contribute disproportionately to quantitative trait variation in yeast. Elife 8, (2019).
