@@ -1,0 +1,19 @@
+strain_ID	strain_ID (3-letter code from Peter et al., 2018)	haploid_parent	yKR description	inoculate in test tube with	strain number
+yKR908	ADR	M22 MatA  ho∆::KanMX (Box A1 E5)	(yKR908 = M22 MatA  ho∆::KanMX (Box A1 E5)	YPD+G418	strain_1
+yKR909	ADR	M22 MatAlpha dHO::HphMX 4 (YST331)	(yKR909 = M22 MatAlpha dHO::HphMX 4 (YST331)	YPD+Hyg	strain_2
+yKR910		BY MatA (YLK1879)	(yKR910 = BY MatA (YLK1879)	YPD	strain_3
+yKR911	AAA	RM MatAlpha AMN1-BY ho∆::HphMX flo8∆::NatMX (YLK1950)	(yKR911 = RM MatAlpha AMN1-BY ho∆::HphMX flo8∆::NatMX (YLK1950)	YPD+Hyg	strain_4
+yKR912	ACD	YPS163 MatA ho∆::HphMX flo8∆::NatMX (YLK2438)	(yKR912 = YPS163 MatA ho∆::HphMX flo8∆::NatMX (YLK2438)	YPD+Hyg	strain_5
+yKR913	AAS	YJM145 MatAlpha ho∆::HphMX flo8∆::NatMX (yST176)	(yKR913 = YJM145 MatAlpha ho∆::HphMX flo8∆::NatMX (yST176)	YPD+Hyg	strain_6
+yKR914	ACG	Clib413 MatA ho∆::KanMX (BoxA1 D3)	(yKR914 = Clib413 MatA ho∆::KanMX (BoxA1 D3)	YPD+G418	strain_7
+yKR915	ADG	YJM978 MatAlpha ho∆::HphMX (yST317)	(yKR915 = YJM978 MatAlpha ho∆::HphMX (yST317)	YPD+Hyg	strain_8
+yKR916	ABH	YJM454 MatA ho∆::KanMX (BoxA1 B9)	(yKR916 = YJM454 MatA ho∆::KanMX (BoxA1 B9)	YPD+G418	strain_9
+yKR917	ADF	YPS1009 MatAlpha  ho∆::HphMX (yST186)	(yKR917 = YPS1009 MatAlpha  ho∆::HphMX (yST186)	YPD+Hyg	strain_10
+yKR918	ACS	I14 MatA ho∆::KanMX (BoxA1 E4)	(yKR918 = I14 MatA ho∆::KanMX (BoxA1 E4)	YPD+G418	strain_11
+yKR919	ACI	Y10 MatAlpha ho∆::HphMX (yST170)	(yKR919 = Y10 MatAlpha ho∆::HphMX (yST170)	YPD+Hyg	strain_12
+yKR920	ADE	PW5 MatA ho∆::KanMX (BoxA1 F4)	(yKR920 = PW5 MatA ho∆::KanMX (BoxA1 F4)	YPD+G418	strain_13
+yKR921	ADE	PW5 MatAlpha ho∆::HphMX (yST235)	(yKR921 = PW5 MatAlpha ho∆::HphMX (yST235)	YPD+Hyg	strain_14
+yKR922	SACE_MAA	273614 MatA ho∆::KanMX (yST133)	(yKR922 = 273614 MatA ho∆::KanMX (yST133)	YPD+G418	strain_15
+yKR923	ADI	YJM981 MatAlpha ho∆::HphMX (yST191)	(yKR923 = YJM981 MatAlpha ho∆::HphMX (yST191)	YPD+Hyg	strain_16
+yKR924	ABL	CBS2888 MatA ho∆::KanMX (Box A1 C3)	(yKR924 = CBS2888 MatA ho∆::KanMX (Box A1 C3)	YPD+G418	strain_17
+yKR925	ACQ	Clib219 MatAlpha ho∆::HphMX (yST195)	(yKR925 = Clib219 MatAlpha ho∆::HphMX (yST195)	YPD+Hyg	strain_18
